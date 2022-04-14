@@ -1,0 +1,4 @@
+"","cutoff","tpr","fpr","accuracy","sensitivity","percision","recall","f","overall_error","overall_accuracy","fp","tp","tn","fn","class","model","Youden","type"
+"1",0.326,0.932,0.123,0.882,0.932,0.882,0.932,0.907,0.096,0.904,272,2039,1938,148,"ADPE_a","yolov5_adult_s2",1.809,"f = max"
+"2",0.375,0.861,0.091,0.786,0.861,0.786,0.861,0.822,0.105,0.895,300,1103,2990,178,"ADPE_a_stand","yolov5_adult_stand_s5",1.77,"f = max"
+"3",0.208,0.91,0.15,0.764,0.91,0.764,0.91,0.831,0.129,0.871,356,1154,2016,114,"ADPE_j","yolov5_chick_s",1.76,"f = max"
