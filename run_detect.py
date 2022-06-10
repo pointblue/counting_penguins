@@ -1,5 +1,9 @@
 # User inputs ---------------------------------------------------------------
 
+# load librarys
+from pathlib import Path
+from argparse import Namespace
+import os
 # model paths relitive to the YOLOv5 Directory
 models=['../models/adult_s2_best.pt',
         '../models/adult_stand_s5_best.pt',
@@ -12,15 +16,12 @@ tile_dir= "../test_images_tiled/*"
 conf_thres=0.01
 
 # largest image dimention
-image_size=512
+image_size=(512, 256)
 
 # name for output directory (will be created in the yolov5 directory, e.g. ./yolov5/penguin_2021)
 output_dir="penguin_2021"
 
-# load librarys
-from pathlib import Path
-from argparse import Namespace
-import os
+
 # change to the yolov5 directory to inport the detect function
 os.chdir("./yolov5")
 os.getcwd()
