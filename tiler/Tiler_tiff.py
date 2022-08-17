@@ -39,7 +39,7 @@ class Tiler(object):
             print(f"tileing file {name}")
             for (i, j) in it.product(range(nX), range(nY)):
                 xx = i*(self.xSize-self.buffer)
-                yy = j*(self.xSize-self.buffer)
+                yy = j*(self.ySize-self.buffer)
 
                 cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
                 cropped_img =cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR)
