@@ -7,6 +7,8 @@ import itertools as it
 import os
 import sys
 import glob
+import rasterio
+import csv
 
 class Tiler(object):
     """docstring for Tiler"""
@@ -35,22 +37,44 @@ class Tiler(object):
                          (self.xSize-self.buffer)).astype(int)
             nY = np.ceil((height-self.buffer) /
                          (self.ySize-self.buffer)).astype(int)
-            # loop over square index. get top left of pt w/ cropped image
-            print(f"tileing file {name}")
-            for (i, j) in it.product(range(nX), range(nY)):
-                xx = i*(self.xSize-self.buffer)
-                yy = j*(self.ySize-self.buffer)
-
-                cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
-                cropped_img =cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR)
-
-                                # Save in table img name, xx and yy
-
-                outfile = str(Path(os.path.join(str(self.outDir),name)+f'_{i}_{j}.{self.outFileExt}'))
-
-                cv2.imwrite(outfile , cropped_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
-
-            print("\tdone")
+                         
+            # get geodata
+            rast = rasterio.open(file)
+            
+            # open a file to append data
+            header = ["tileName", "pixelX", "pixelY", "easting", "northng"]
+            outcsv = str(Path(os.path.join(str(self.outDir),name)+"_tilesGeorefTable.csv"))
+            with open(outcsv, 'w', newline='') as outTable:
+                writer = csv.writer(outTable)
+                writer.writerow(header)
+            
+		        # loop over square index. get top left of pt w/ cropped image
+		        print(f"tileing file {name}")
+		        for (i, j) in it.product(range(nX), range(nY)):
+		            xx = i*(self.xSize-self.buffer)
+		            yy = j*(self.ySize-self.buffer)
+			            
+		            cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
+		            cropped_img =cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR)
+		            
+		            # filter only for tiles with something in them (i.e., not single-color tiles)
+		            # could be as simple as...
+		            if np.min(cropped_img) == np.max(cropped_img):
+		            
+			            # Save in table img name, xx, yy, easting, northing
+			            # xx and yy are the absolute references.
+			            # the georeferences are easy to get
+			            eastV = rast.xy(xx,yy)[0]
+			            northV = rast.xy(xx,yy)[1]
+			            tilename = str(name+f'_{i}_{j}.{self.outFileExt}')
+			            data = [tilename, xx, yy, eastV, northV]
+			            writer.writerow(data)
+			
+			            outfile = str(Path(os.path.join(str(self.outDir),name)+f'_{i}_{j}.{self.outFileExt}'))
+			
+			            cv2.imwrite(outfile , cropped_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
+		
+		        print("\tdone")
 
         except OSError:
             print("cannot open", file)
