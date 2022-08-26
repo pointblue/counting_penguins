@@ -205,7 +205,7 @@ update_labs <-
     
     
     # update picklist
-    pl_update <- rows_update(pl, tagged, copy = TRUE, by = tileMatch)
+    pl_update <- rows_update(pl, tagged, copy = TRUE, by = tileName)
     
     # write file to s3
     s3write_using(
