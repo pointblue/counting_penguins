@@ -12,74 +12,107 @@
 # also downloads label file for use in makesense.ai based on user input 
 
 
-
 # Function to download set of tiles and update pick list
+# bucket <-
+#   "s3://pb-adelie/"
+# 
+# prefix <-
+#   "1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
+# 
+# # set desired name of picklist
+# tile_list <-
+#   "croz_20191202_validation_tile_list.csv"
+# 
+# wd = "C:/Users/aschmidt/Desktop/test_images/"
 
 tile_picker <-
-  function(bucket, 
-           prefix, 
-           pick_list,
-           initials, 
-           n, 
-           working_dir){
+  function(bucket,
+           prefix,
+           tile_list,
+           initials,
+           n,
+           wd) {
+    
+    # required libraries
     require(tidyverse)
     require(aws.s3)
+    
+    # set up
     init = initials
-    setwd(working_dir)
+    setwd(wd)
+    
     # first need to load most current version of picklist and what is not yet tagged
-    pl <-s3read_using(read_csv, 
-                      object = paste0(prefix, "validation_set/",pick_list), 
-                      bucket = bucket,
-                      show_col_types = FALSE)
+    pl <- s3read_using(
+      read_csv,
+      object = paste0(prefix, tile_list),
+      bucket = bucket,
+      show_col_types = FALSE
+    )
+    
     # then select next set
     # do this randomly so aren't processing tiles sequentially
-    #first filter pl to tiles that haven't yet been tagged
-    set <- 
+    # first filter pl to tiles that haven't yet been tagged
+    set <-
       filter(pl,
-             is.na(tagged))%>%
-      slice_sample(n=n) %>%
-      mutate(
-        tagged = 1,
-        initials = init,
-        datetime = Sys.time()
-      )
+             !downloaded ==1 &
+               ! tagged == 1) %>%
+      slice_sample(n = n) %>%
+      mutate(downloaded = 1,
+             initials = init,
+             datetime = Sys.time())
     
     # update picklist
-    pl <- rows_update(pl,set)
+    pl <- rows_update(pl, set, by = "tileName")
+    
     # write file to s3
-    s3write_using(pl,
-                  FUN = write_csv, 
-                  object = paste0(prefix, pick_list),
-                  bucket = bucket)
+    s3write_using(
+      pl,
+      FUN = write_csv,
+      object = paste0(prefix, tile_list),
+      bucket = bucket
+    )
+    
     # download tiles
-    message(paste("Downloading",as.character(n),"tiles from:", paste0(bucket,prefix,"validation_set"), "to:", getwd()))
-    for(i in 1:nrow(set)){
-      tile_name = set$tile_name[i]
-      object = paste0(prefix,tile_name)
+    message(paste(
+      "Downloading",
+      as.character(n),
+      "tiles from:",
+      paste0(bucket, prefix),
+      "to:",
+      getwd()
+    ))
+    
+    for (i in 1:nrow(set)) {
+      tile_name <-
+        set$tileName[i]
+      
+      object <-
+        paste0(prefix, tile_name, ".jpg")
+      
       save_object(
         object = object,
         bucket = bucket,
-        file = paste0(working_dir,tile_name)
+        file = paste0(wd, tile_name, ".jpg")
       )
+      
       # also download label file
       save_object(
-        object = paste0(prefix,"validation_set/label_key.txt"),
+        object = paste0(prefix, "label_key.txt"),
         bucket = bucket,
-        file = paste0(working_dir,"label_key.txt")
+        file = paste0(wd, "label_key.txt")
       )
-        
       
     }
   }
 
 # tile_picker(
-  # pick_list = "croz_20191202_pick_list.csv",
-  # bucket = bucket,
-  # prefix = prefix,
-  # initials = "AS",
-  # working_dir = "C:/Users/aschmidt/Desktop/test_images/",
-  # n = 5)
-  #   
+#   tile_list = "croz_20191202_validation_tile_list.csv",
+#   bucket = bucket,
+#   prefix = prefix,
+#   initials = "AS",
+#   wd = "C:/Users/aschmidt/Desktop/test_images/",
+#   n = 5)
+
 
 # Function2:
 # run when done with tagging session
@@ -88,40 +121,39 @@ tile_picker <-
 # read in existing table in s3
 # combine tables
 # write updated table to s3
+# update picklist with tagged
 
 update_labs <- 
   function(bucket,
-           prefix){
+           prefix,
+           pick_list){
+    
+    
     require(tidyverse)
     require(aws.s3)
-    dir = getwd()
+    # wd = getwd()
     
     # read in label key file
     labs <- read_delim("label_key.txt", delim = ",", col_names = "label", show_col_types = FALSE) %>%
-      mutate(lab_key = c(0,1,2))
+      mutate(lab_key = c(0,1,2,3))
     
     # read in tables with annotations in file_location
-    file_ls <- 
-      # list.files(pattern = ".zip")
+    lab_tab <- 
       file.choose()
-    # if(length(file_ls) > 1) {
-    #   message("Warning: multiple label.zip files exist, only most recent will be used")
-    # } else {
-    # if(length(file_ls) == 0){
-    #   readline(prompt=message('There is no zipped label file. Move labels.zip file from downloads and press [enter]'))
-    # }
       
 # unzip files to local directory
-    unzip(file_ls[1], exdir = getwd())
+    unzip(lab_tab, exdir = getwd())
     files <- list.files(pattern = "(\\d{1,3}.txt)$")
     
-
     new_labs <-
-      map(.x = files, ~read_delim(.x, col_names = FALSE, show_col_types = FALSE))%>%
+      map(.x = files, ~read_delim(.x, col_names = FALSE, show_col_types = FALSE)) %>%
       map2(.y = files, ~mutate(.x, tileName = .y)) %>%
       bind_rows() %>%
       rename(lab_key = X1, x = X2, y = X3, width = X4, height = X5) %>%
-      left_join(labs) %>%
+      # remove .txt from tileName
+      mutate(tileName = str_extract(tileName, "(.+)(?=.txt)")) %>%
+      left_join(labs, by = "lab_key") %>%
+      select (tileName, label, x, y, width, height)
       
       
   # check if table of labels already exists
@@ -129,7 +161,7 @@ update_labs <-
      existing_labs <-
        s3read_using(
         read_csv,
-        object = paste0(prefix, "validation_set/validation_labels.csv"), 
+        object = paste0(prefix, "validation_labels.csv"), 
         bucket = bucket,
         show_col_types = FALSE,
         )
@@ -138,7 +170,8 @@ update_labs <-
       comb_labs <- 
         full_join(
           existing_labs,
-          new_labs)
+          new_labs,
+          by = c("tileName", "label", "x", "y", "width", "height"))
     }else{
       comb_labs <- 
         new_labs
@@ -147,10 +180,42 @@ update_labs <-
       s3write_using(
       comb_labs,
       FUN = write_csv,
-      object = paste0(prefix,"validation_set/validation_labels.csv"),
+      object = paste0(prefix,"validation_labels.csv"),
       bucket = bucket
     )
-    message('Ready to clear working directory? (enter "y" to proceed)')
+      
+    # update tagged column in pick list
+    message("Updating tile list with tiles tagged")
+    
+    # create summary table of tiles tagged
+    tagged <-
+      comb_labs %>% 
+      group_by(tileName, label) %>% 
+      tally() %>%
+      pivot_wider(names_from = label, values_from = n) %>%
+      mutate(tagged =1)
+    
+    # first need to load most current version of picklist and what is not yet tagged
+    pl <- s3read_using(
+      read_csv,
+      object = paste0(prefix, tile_list),
+      bucket = bucket,
+      show_col_types = FALSE
+    ) 
+    
+    
+    # update picklist
+    pl_update <- rows_update(pl, tagged, copy = TRUE)
+    
+    # write file to s3
+    s3write_using(
+      pl_update,
+      FUN = write_csv,
+      object = paste0(prefix, tile_list),
+      bucket = bucket
+    )
+    
+    message('Ready to clear working directory? (enter [y] to clear)')
     var <- readline()
     # clear working directory
     if(var == "y") {
