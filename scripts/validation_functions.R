@@ -126,7 +126,7 @@ tile_picker <-
 update_labs <- 
   function(bucket,
            prefix,
-           pick_list){
+           tile_list){
     
     
     require(tidyverse)
@@ -161,7 +161,7 @@ update_labs <-
      existing_labs <-
        s3read_using(
         read_csv,
-        object = paste0(prefix, "validation_labels.csv"), 
+        object = paste0(prefix, label_tab), 
         bucket = bucket,
         show_col_types = FALSE,
         )
@@ -180,7 +180,7 @@ update_labs <-
       s3write_using(
       comb_labs,
       FUN = write_csv,
-      object = paste0(prefix,"validation_labels.csv"),
+      object = paste0(prefix,label_tab),
       bucket = bucket
     )
       
@@ -205,7 +205,7 @@ update_labs <-
     
     
     # update picklist
-    pl_update <- rows_update(pl, tagged, copy = TRUE)
+    pl_update <- rows_update(pl, tagged, copy = TRUE, by = tileMatch)
     
     # write file to s3
     s3write_using(

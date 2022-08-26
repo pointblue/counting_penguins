@@ -82,6 +82,7 @@ yolo_labs = c("ADPE_a", "ADPE_a_stand", "ADPE_j", "no_ADPE")
 
 labs <- 
   data.frame(yolo_labs)
+
 s3write_using(labs,
               FUN = write_delim,
               col_names = FALSE,
