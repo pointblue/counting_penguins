@@ -17,7 +17,7 @@ library(tidyverse)
 library(aws.s3)
 # source functions you will be using
 # set this path to wherever you save the r script (recommend just saving to desktop)
-source("set_this_for_your_machine")
+source("scripts/valication_functions.R")
 
 ```
 
@@ -48,8 +48,6 @@ label_tab <-
 initials <-
   "your_initials"
 
-wd <-
-  "C:/Users/aschmidt/Desktop/test_images/"
 
 
 # Run tile picker function including your initials
