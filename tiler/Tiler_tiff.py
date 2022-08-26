@@ -41,40 +41,43 @@ class Tiler(object):
             # get geodata
             rast = rasterio.open(file)
             
+            # loop over square index. get top left of pt w/ cropped image
+            print(f"tileing file {name}")
+	        
             # open a file to append data
             header = ["tileName", "pixelX", "pixelY", "easting", "northng"]
             outcsv = str(Path(os.path.join(str(self.outDir),name)+"_tilesGeorefTable.csv"))
-            with open(outcsv, 'w', newline='') as outTable:
-                writer = csv.writer(outTable)
-                writer.writerow(header)
-            
-		        # loop over square index. get top left of pt w/ cropped image
-		        print(f"tileing file {name}")
-		        for (i, j) in it.product(range(nX), range(nY)):
-		            xx = i*(self.xSize-self.buffer)
-		            yy = j*(self.ySize-self.buffer)
-			            
-		            cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
-		            cropped_img =cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR)
+            fcsv = open(outcsv, 'w', newline='')
+            writer = csv.writer(fcsv)
+            writer.writerow(header)
+        
+	        for (i, j) in it.product(range(nX), range(nY)):
+	            xx = i*(self.xSize-self.buffer)
+	            yy = j*(self.ySize-self.buffer)
 		            
-		            # filter only for tiles with something in them (i.e., not single-color tiles)
-		            # could be as simple as...
-		            if np.min(cropped_img) == np.max(cropped_img):
-		            
-			            # Save in table img name, xx, yy, easting, northing
-			            # xx and yy are the absolute references.
-			            # the georeferences are easy to get
-			            eastV = rast.xy(xx,yy)[0]
-			            northV = rast.xy(xx,yy)[1]
-			            tilename = str(name+f'_{i}_{j}.{self.outFileExt}')
-			            data = [tilename, xx, yy, eastV, northV]
-			            writer.writerow(data)
-			
-			            outfile = str(Path(os.path.join(str(self.outDir),name)+f'_{i}_{j}.{self.outFileExt}'))
-			
-			            cv2.imwrite(outfile , cropped_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
+	            cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
+	            cropped_img =cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR)
+	            
+	            # filter only for tiles with something in them (i.e., not single-color tiles)
+	            # could be as simple as...
+	            if np.max(cropped_img) != np.min(cropped_img):
+	            
+		            # Save in table img name, xx, yy, easting, northing
+		            # xx and yy are the absolute references.
+		            # the georeferences are easy to get
+		            eastV = rast.xy(xx,yy)[0]
+		            northV = rast.xy(xx,yy)[1]
+		            tilename = str(name+f'_{i}_{j}.{self.outFileExt}')
+		            data = [tilename, xx, yy, eastV, northV]
+		            writer.writerow(data)
 		
-		        print("\tdone")
+		            outfile = str(Path(os.path.join(str(self.outDir),name)+f'_{i}_{j}.{self.outFileExt}'))
+		
+		            cv2.imwrite(outfile , cropped_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
+	        
+	        fcsv.close()
+	        
+	        print("\tdone")
 
         except OSError:
             print("cannot open", file)
