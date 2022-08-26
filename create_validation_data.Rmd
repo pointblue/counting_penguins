@@ -19,13 +19,6 @@ library(aws.s3)
 # set this path to wherever you save the r script (recommend just saving to desktop)
 source("Z:/Informatics/S031/analyses/counting_penguins/scripts/validation_functions.R")
 
-# set up AWS credentials to be able to access bucket
-Sys.setenv(
-  "AWS_ACCESS_KEY_ID" = "AKIAIPIS43MIHABD4CVA",
-  "AWS_SECRET_ACCESS_KEY" = "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",
-  "AWS_DEFAULT_REGION" = "us-west-2"
-)
-
 ```
 
 ## Download images to tag
@@ -37,16 +30,17 @@ For current test parameters are as follows:
 
 bucket = "s3://pb-adelie/"
 prefix = "1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
-pick_list = "croz_20191202_pick_list.csv"
+tile_list = "croz_20191202_validation_tile_list.csv"
 
 # Run tile picker function including your initials and the location on your local machine where you want to download images to
+# this directory will get cleared to best to make a fresh one on your desktop for this purpose
 # n = the number of images it will down load. Recommend doing small chunks of 3-5 so you can ensure you complete them all
 tile_picker(
- pick_list = pick_list,
+ tile_list = tile_list,
  bucket = bucket,
  prefix = prefix,
  initials = "AS",
- working_dir = "C:/Users/aschmidt/Desktop/test_images/",
+ wd = "C:/Users/aschmidt/Desktop/test_images/",
  n = 5)
 
 # now you can upload the images to makesense.ai to tag
@@ -56,3 +50,11 @@ tile_picker(
 ## Upload label data and combine with existing data
 Run update_labs function to update label data in s3
 Will need to move label.zip file from downloads to working directory first
+
+```{r run label updater}
+update_labs(
+  bucket,
+  prefix,
+  tile_list)
+
+```
