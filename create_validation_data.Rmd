@@ -17,7 +17,7 @@ library(tidyverse)
 library(aws.s3)
 # source functions you will be using
 # set this path to wherever you save the r script (recommend just saving to desktop)
-source("scripts/valication_functions.R")
+source("scripts/validation_functions.R")
 
 ```
 
@@ -40,7 +40,7 @@ tile_list <-
   "croz_20191202_validation_tile_list.csv"
 
 wd <-
-  "set_to_your_working directory/" # NOTE: this directory will get cleared to best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
+  "set_to_your_working directory/" # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
 
 label_tab <-
   "croz_20191202_validation_labels.csv"
