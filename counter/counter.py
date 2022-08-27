@@ -8,21 +8,19 @@ import detect
 class Counter(object):
     """docstring for Counter"""
 
-    def __init__(self, output_dir, tile_dir, text_dir, models,conf_thres=0.01, image_size=(512, 256)):
+    def __init__(self, output_dir, text_dir, models,conf_thres=0.01, image_size=(512, 256)):
         super(Counter, self).__init__()
         self.conf_thres = conf_thres
         self.image_size = image_size
-        self.output_dir = output_dir
         self.outDir = output_dir
         self.outDir = Path(output_dir)
         self.outDir.mkdir(parents=True, exist_ok=True)
-        self.tileDir = tile_dir
         self.textDir = text_dir
         self.textDir = Path(text_dir)
         self.textDir.mkdir(parents=True, exist_ok=True)
         self.models = models
         
-    def count(self):
+    def count(self,tileDir):
     
         try:
             for mod in self.models:
@@ -44,7 +42,7 @@ class Counter(object):
                     iou_thres=0.3,
                     name=run_name,
                     project=str(self.outDir),
-                    source=self.tileDir,
+                    source=tileDir,
                     save_txt=str(self.textDir),
                     weights=mod)
                     
