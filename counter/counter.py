@@ -8,16 +8,17 @@ import detect
 class Counter(object):
     """docstring for Counter"""
 
-    def __init__(self, output_dir, text_dir, models,conf_thres=0.01, image_size=(512, 256)):
+    def __init__(self, output_dir, models, asText=True, addConf=True, notSaveImg=True, Visualize=False, conf_thres=0.01, image_size=(512, 256)):
         super(Counter, self).__init__()
         self.conf_thres = conf_thres
         self.image_size = image_size
         self.outDir = output_dir
         self.outDir = Path(output_dir)
         self.outDir.mkdir(parents=True, exist_ok=True)
-        self.textDir = text_dir
-        self.textDir = Path(text_dir)
-        self.textDir.mkdir(parents=True, exist_ok=True)
+        self.asText = asText
+        self.addConf = addConf
+        self.notSaveImg = notSaveImg
+        self.Visualize = Visualize
         self.models = models
         
     def count(self,tileDir):
@@ -43,7 +44,10 @@ class Counter(object):
                     name=run_name,
                     project=str(self.outDir),
                     source=tileDir,
-                    save_txt=str(self.textDir),
+                    save_txt=self.asText,
+                    save_conf=self.addConf,
+                    nosave=self.notSaveImg,
+                    visualize=self.Visualize,
                     weights=mod)
                     
                 detect.main(opt)
