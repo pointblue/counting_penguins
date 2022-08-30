@@ -62,7 +62,7 @@ pick_list_df <-
     downloaded = 0,
     tagged = 0,
     initials = NA,
-    datetime = NA,
+    datetime_down = NA,
     # add columns to track how many labels of each category on each tile
     ADPE_a = NA,
     ADPE_a_stand = NA,
