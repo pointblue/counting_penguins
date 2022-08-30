@@ -13,17 +13,19 @@
 
 
 # Function to download set of tiles and update pick list
-# bucket <-
-#   "s3://pb-adelie/"
-# 
-# prefix <-
-#   "1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
-# 
-# # set desired name of picklist
-# tile_list <-
-#   "croz_20191202_validation_tile_list.csv"
-# 
-# wd = "C:/Users/aschmidt/Desktop/test_images/"
+bucket <-
+  "s3://pb-adelie/"
+
+prefix <-
+  "1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
+
+# set desired name of picklist
+tile_list <-
+  "croz_20191202_validation_tile_list.csv"
+
+wd = "C:/Users/aschmidt/Desktop/test_images/"
+
+Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
 
 tile_picker <-
   function(bucket,
@@ -46,7 +48,7 @@ tile_picker <-
       read_csv,
       object = paste0(prefix, tile_list),
       bucket = bucket,
-      show_col_types = FALSE
+      col_types = cols(.default = "n", tileName = "c", initials = "c", datetime_down = "T") 
     )
     
     # then select next set
@@ -59,14 +61,14 @@ tile_picker <-
       slice_sample(n = n) %>%
       mutate(downloaded = 1,
              initials = init,
-             datetime = Sys.time())
+             datetime_down = Sys.time())
     
     # update picklist
-    pl <- rows_update(pl, set, by = "tileName")
+    pl_update <- rows_update(pl, set, by = "tileName")
     
     # write file to s3
     s3write_using(
-      pl,
+      pl_update,
       FUN = write_csv,
       object = paste0(prefix, tile_list),
       bucket = bucket
@@ -105,13 +107,13 @@ tile_picker <-
     }
   }
 
-# tile_picker(
-#   tile_list = "croz_20191202_validation_tile_list.csv",
-#   bucket = bucket,
-#   prefix = prefix,
-#   initials = "AS",
-#   wd = "C:/Users/aschmidt/Desktop/test_images/",
-#   n = 5)
+tile_picker(
+  tile_list = "croz_20191202_validation_tile_list.csv",
+  bucket = bucket,
+  prefix = prefix,
+  initials = "AS",
+  wd = "C:/Users/aschmidt/Desktop/test_images/",
+  n = 5)
 
 
 # Function2:
