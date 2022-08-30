@@ -4,3 +4,5 @@
 .Ruserdata
 .html
 *yolov5/.*
+__pycache__
+
