@@ -12,12 +12,51 @@ It also requires an R script, validation_functions.R that has two essential func
 
 ## Getting set up
 ```{r setup, eval = TRUE, results = 'hide', message = FALSE, warning = FALSE}
-
+# packages required
 library(tidyverse)
+library(googledrive)
+library(googlesheets4)
 library(aws.s3)
+
 # source functions you will be using
-# set this path to wherever you save the r script (recommend just saving to desktop)
+# if running this from wherever you cloned the repo, shouldn't need to alter this path
+# can make changes to this .Rmd and save them locally, but don't push to repo
 source("scripts/validation_functions.R")
+
+
+# set up some parameters
+
+# these are for google drive access
+# the first time you run this you will need to authorize R to access google drive
+drive_auth()
+gs4_auth(token = drive_token())
+data_tab <-
+  "croz_20191202_validation_tile_list"
+# get file id of google sheet
+id <- drive_get(data_tab)$id
+
+
+# set these for aws access
+# set region for s3 bucket access
+Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
+
+# some of these used by both functions
+bucket <- 
+  "s3://pb-adelie/"
+
+prefix <-
+"1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
+
+
+# set your temporary working directory
+# NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
+wd <-
+  "set_to_your_working_directory/" 
+
+# set your initials
+initials <-
+  "your_initials"
+
 
 ```
 
@@ -27,38 +66,17 @@ There is no undo so make sure you complete the images you download.
 Running the function will also place a label key in the specified directory that can be used with makesense.ai
 For current test parameters are as follows:
 ```{r run tile picker}
-
-# set these parameters
-# some used by both functions
-bucket <- 
-  "s3://pb-adelie/"
-
-prefix <-
-"1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
-
-tile_list <-
-  "croz_20191202_validation_tile_list.csv"
-
-wd <-
-  "set_to_your_working directory/" # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
-
-label_tab <-
-  "croz_20191202_validation_labels.csv"
-
-initials <-
-  "your_initials"
-
-
-
 # Run tile picker function including your initials
-# n = the number of images it will down load. Recommend doing small chunks of 3-5 so you can ensure you complete them all
+# n = the number of images it will download. Recommend doing small chunks of 3-5 so you can ensure you complete them all
+
 tile_picker(
- tile_list = tile_list,
+ tile_list = data_tab,
  bucket = bucket,
  prefix = prefix,
  initials = initials,
  wd = wd,
- n = 5)
+ n = 5, 
+ id = id)
 
 # now you can upload the images to makesense.ai to tag
 # once done with tagging, make sure to export annotations as a zip file in YOLO format and continue to next step
