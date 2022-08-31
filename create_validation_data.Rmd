@@ -58,8 +58,8 @@ wd <-
   "set_to_your_working_directory/" 
 
 # set your initials
-initials <-
-  "your_initials"
+# initials <-
+#   "your_initials"
 
 
 ```
@@ -77,9 +77,7 @@ tile_picker(
  tile_list = data_tab,
  bucket = bucket,
  prefix = prefix,
- initials = initials,
  wd = wd,
- n = 5, 
  file_id = file_url)
 
 # now you can upload the images to makesense.ai to tag
