@@ -27,7 +27,7 @@
 # "croz_20191202_validation_data"
 # 
 # 
-wd = "C:/Users/aschmidt/Desktop/test_images/"
+# wd = "C:/Users/aschmidt/Desktop/test_images/"
 # 
 # Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
 # 
