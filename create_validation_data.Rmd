@@ -24,10 +24,10 @@ library(aws.s3)
 source("scripts/validation_functions.R")
 
 wd <-
-  "C:/Users/gballard/Desktop/GB_validation_data/"
+  "set_to_your_working_dir"
 
 # setwd(wd)
-knitr::opts_knit$set(root.dir = wd)
+# knitr::opts_knit$set(root.dir = wd)
 
 
 ```
