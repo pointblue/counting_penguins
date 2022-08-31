@@ -17,7 +17,7 @@ prefix <-
 
 # set desired name of picklist
 pl_name <-
-  "croz_20191202_validation_tile_list.csv"
+  "croz_20191202_validation_data"
 
 # get file info from bucket location
 files <- 
@@ -61,23 +61,42 @@ pick_list_df <-
     # add column for whether tile has been processed and by whom
     downloaded = 0,
     tagged = 0,
-    initials = NA,
-    datetime_down = NA,
+    initials = "",
+    datetime_down = "",
     # add columns to track how many labels of each category on each tile
-    ADPE_a = NA,
-    ADPE_a_stand = NA,
-    ADPE_j = NA,
-    no_ADPE = NA
+    ADPE_a = "",
+    ADPE_a_stand = "",
+    ADPE_j = "",
+    no_ADPE = ""
   )
 
 # write picklist to s3
-s3write_using(pick_list_df,
-              FUN = write_csv, 
-              object = paste0(prefix, pl_name),
-              bucket = bucket)
+# s3write_using(pick_list_df,
+#               FUN = write_csv, 
+#               object = paste0(prefix, pl_name),
+#               bucket = bucket)
+# drive_create("Antarctica/Projects/counting_penguins/test", type = "spreadsheet")
+gs4_create(pl_name, sheets = pick_list_df)
+id <- drive_get(pl_name)$id
+# rename sheet
+sheet_rename(id,
+             sheet = "pick_list_df",
+             new_name = "tile_list")
+# sheet_add(id,
+#           sheet = "label_data"
+# )
+
+# add column headings for label data sheet
+label_data <- 
+  data.frame(matrix(nrow =0, ncol = 6))
+names(label_data) <-
+  c("tileName", "label", "x", "y", "width", "height")
+
+sheet_write(label_data, ss = id, sheet = "label_data")
+
 
 # create table with labels for YOLO
-# these need to match the labels in the model (except for no_penguin which is not in the model)
+# these need to match the labels in the model (except for no,_penguin which is not in the model)
 yolo_labs = c("ADPE_a", "ADPE_a_stand", "ADPE_j", "no_ADPE")
 
 labs <- 
