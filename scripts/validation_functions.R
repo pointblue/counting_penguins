@@ -25,12 +25,12 @@
 # set name of google sheet where tracking validation data
 # data_tab <-
 # "croz_20191202_validation_data"
-
-
+# 
+# 
 # wd = "C:/Users/aschmidt/Desktop/test_images/"
-
+# 
 # Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
-
+# 
 # id <- drive_get(data_tab)$id
 
 tile_picker <-
@@ -155,7 +155,6 @@ tile_picker <-
 update_labs <-
   function(bucket,
            prefix,
-           tile_list,
            file_id) {
     require(tidyverse)
     require(aws.s3)
