@@ -37,8 +37,6 @@ tile_picker <-
   function(bucket,
            prefix,
            tile_list,
-           initials,
-           n,
            wd,
            file_id) {
     # required libraries
@@ -48,7 +46,11 @@ tile_picker <-
     require(aws.s3)
     
     # set up
-    init = initials
+    message("Please provide your initials:")
+    init = readline()
+    
+    message("How many images would you like to download?")
+    n = as.numeric(readline())
     setwd(wd)
     
     # first need to load most current version of picklist and what is not yet tagged
