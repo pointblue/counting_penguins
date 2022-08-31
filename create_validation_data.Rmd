@@ -23,19 +23,24 @@ library(aws.s3)
 # can make changes to this .Rmd and save them locally, but don't push to repo
 source("scripts/validation_functions.R")
 
+wd <-
+  "C:/Users/aschmidt/Desktop/test_images/"
+setwd(wd)
+knitr::opts_knit$set(root.dir = wd)
+
 
 ```
 ## set up some parameters
 ```{r setup google environment}
-# these are for google drive access
-# the first time you run this you will need to authorize R to access google drive
-# drive_auth()
-# gs4_auth(token = drive_token())
-# provide
+
+# provide url for google sheet that is tracking and collecting label data
 file_url <-
   "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
 
-
+# these commands are for google drive access
+# the first time you run this you will need to authorize R to access google drive
+drive_auth()
+gs4_auth(token = drive_token())
 
 ```
 
@@ -55,8 +60,9 @@ prefix <-
 # set your temporary working directory
 # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
 wd <-
-  "set_to_your_working_directory/" 
-
+  "C:/Users/aschmidt/Desktop/test_images/" 
+knitr::opts_knit$set(root.dir = wd)
+ 
 # set your initials
 # initials <-
 #   "your_initials"
@@ -69,15 +75,15 @@ This function will check the pick list for available images, download the images
 There is no undo so make sure you complete the images you download.
 Running the function will also place a label key in the specified directory that can be used with makesense.ai
 For current test parameters are as follows:
-```{r run tile picker}
+```{r run tile picker, echo=TRUE, message=FALSE, warning=TRUE}
 # Run tile picker function including your initials
+# this function requires user input so cannot run as a chunk
 # n = the number of images it will download. Recommend doing small chunks of 3-5 so you can ensure you complete them all
 
 tile_picker(
  tile_list = data_tab,
  bucket = bucket,
  prefix = prefix,
- wd = wd,
  file_id = file_url)
 
 # now you can upload the images to makesense.ai to tag
