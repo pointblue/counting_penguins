@@ -9,6 +9,8 @@ library(aws.s3)
 
 
 # create list to pick from ------------------------------------------------
+Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
+
 bucket <-
   "s3://pb-adelie/"
 
