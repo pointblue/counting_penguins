@@ -25,7 +25,7 @@ source("scripts/validation_functions.R")
 
 wd <-
   "C:/Users/aschmidt/Desktop/test_images/"
-setwd(wd)
+# setwd(wd)
 knitr::opts_knit$set(root.dir = wd)
 
 
@@ -36,6 +36,7 @@ knitr::opts_knit$set(root.dir = wd)
 # provide url for google sheet that is tracking and collecting label data
 file_url <-
   "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
+
 
 # these commands are for google drive access
 # the first time you run this you will need to authorize R to access google drive

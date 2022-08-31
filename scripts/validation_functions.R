@@ -25,12 +25,12 @@
 # set name of google sheet where tracking validation data
 # data_tab <-
 # "croz_20191202_validation_data"
-# 
-# 
+#
+#
 # wd = "C:/Users/aschmidt/Desktop/test_images/"
-# 
+#
 # Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
-# 
+#
 # id <- drive_get(data_tab)$id
 
 tile_picker <-
@@ -45,11 +45,11 @@ tile_picker <-
     require(aws.s3)
     
     # set up
-    message("Please provide your initials:")
-    init = readline()
+    # message("Please provide your initials (all caps):")
+    init = readline(prompt = "Please provide your initials (all caps):")
     
-    message("How many images would you like to download?")
-    n = as.numeric(readline())
+    # message("How many images would you like to download?")
+    n = as.numeric(readline(prompt = "How many images would you like to download?"))
     # setwd(wd)
     
     # first need to load most current version of picklist and what is not yet tagged
@@ -60,7 +60,7 @@ tile_picker <-
     #   col_types = cols(.default = "n", tileName = "c", initials = "c", datetime_down = "T")
     # )
     # find google sheet
-    id <- 
+    id <-
       file_id
     pl <-
       read_sheet(ss = id,
@@ -76,7 +76,7 @@ tile_picker <-
     # do this randomly so aren't processing tiles sequentially
     # first filter pl to tiles that haven't yet been tagged
     set <-
-      filter(pl,!downloaded == 1 &
+      filter(pl, !downloaded == 1 &
                !tagged == 1) %>%
       slice_sample(n = n) %>%
       mutate(
@@ -122,16 +122,20 @@ tile_picker <-
         bucket = bucket,
         file = paste0(wd, tile_name, ".jpg")
       )
-      
-      # also download label file
+    }
+    # also download label file
+    if (file.exists("label_key.txt")) {
+      message("label_key.txt file already in wd")
+    } else{
       save_object(
         object = paste0(prefix, "label_key.txt"),
         bucket = bucket,
-        file = paste0(wd, "label_key.txt")
+        file = paste0(wd, "label_key.txt"),
+        overwrite = TRUE
       )
       closeAllConnections()
-      
     }
+    
   }
 
 # tile_picker(
@@ -264,19 +268,25 @@ update_labs <-
     #   bucket = bucket
     # )
     
-    message('Ready to clear working directory? (enter [y] to clear)')
-    var <- readline()
+    # message('Ready to clear working directory? (enter [y] to clear)')
+    var <-
+      readline(prompt = 'Ready to clear working directory? (enter [y] to clear)')
     # clear working directory
     if (var == "y") {
       unlink(list.files(), force = TRUE)
       # file.remove(list.files(), force = TRUE)
     }
-    
+    if (length(list.files()) > 0) {
+      file_ls <- list.files()
+      message(paste("working directory not cleared", "\n files remaining:", file_ls))
+    } else {
+      message("working directory cleared")
+    }
   }
 # }
 
 
-# update_labs(bucket, 
+# update_labs(bucket,
 #             prefix,
 #           tile_list = data_tab,
 #           file_id = id)
