@@ -37,7 +37,6 @@ tile_picker <-
   function(bucket,
            prefix,
            tile_list,
-           wd,
            file_id) {
     # required libraries
     require(tidyverse)
@@ -51,7 +50,7 @@ tile_picker <-
     
     message("How many images would you like to download?")
     n = as.numeric(readline())
-    setwd(wd)
+    # setwd(wd)
     
     # first need to load most current version of picklist and what is not yet tagged
     # pl <- s3read_using(
@@ -130,6 +129,7 @@ tile_picker <-
         bucket = bucket,
         file = paste0(wd, "label_key.txt")
       )
+      closeAllConnections()
       
     }
   }
@@ -162,7 +162,7 @@ update_labs <-
     require(aws.s3)
     require(googledrive)
     require(googlesheets4)
-    # wd = getwd()
+    # wd = setwd(wd)
     id = file_id
     
     # read in label key file
@@ -268,7 +268,8 @@ update_labs <-
     var <- readline()
     # clear working directory
     if (var == "y") {
-      file.remove(list.files())
+      unlink(list.files(), force = TRUE)
+      # file.remove(list.files(), force = TRUE)
     }
     
   }
