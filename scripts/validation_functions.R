@@ -19,13 +19,19 @@ bucket <-
 prefix <-
   "1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
 
-# set desired name of picklist
-tile_list <-
-  "croz_20191202_validation_tile_list.csv"
+ # <-
+ #  "Antarctica/counting_penguins/croz_20191202_validation_tile_list.csv"
+
+# set name of google sheet where tracking validation data
+data_tab <-
+  "croz_20191202_validation_data"
+
 
 wd = "C:/Users/aschmidt/Desktop/test_images/"
 
 Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
+
+id <- drive_get(data_tab)$id
 
 tile_picker <-
   function(bucket,
@@ -37,6 +43,8 @@ tile_picker <-
     
     # required libraries
     require(tidyverse)
+    require(googledrive)
+    require(googlesheets4)
     require(aws.s3)
     
     # set up
@@ -44,12 +52,23 @@ tile_picker <-
     setwd(wd)
     
     # first need to load most current version of picklist and what is not yet tagged
-    pl <- s3read_using(
-      read_csv,
-      object = paste0(prefix, tile_list),
-      bucket = bucket,
-      col_types = cols(.default = "n", tileName = "c", initials = "c", datetime_down = "T") 
-    )
+    # pl <- s3read_using(
+    #   read_csv,
+    #   object = paste0(prefix, tile_list),
+    #   bucket = bucket,
+    #   col_types = cols(.default = "n", tileName = "c", initials = "c", datetime_down = "T") 
+    # )
+    # find google sheet
+    id <- drive_get(data_tab)$id
+pl <-
+  read_sheet(ss = id,
+             sheet = "tile_list",
+             col_types = "cnncTnnnn")
+    # pl <-
+    #   drive_download(
+    #     tile_list,
+    #     path = path,
+    #     overwrite = TRUE)
     
     # then select next set
     # do this randomly so aren't processing tiles sequentially
@@ -66,13 +85,17 @@ tile_picker <-
     # update picklist
     pl_update <- rows_update(pl, set, by = "tileName")
     
-    # write file to s3
-    s3write_using(
-      pl_update,
-      FUN = write_csv,
-      object = paste0(prefix, tile_list),
-      bucket = bucket
-    )
+    
+    # update google sheet
+    sheet_write(pl_update, ss = id, sheet = "tile_list")
+    
+    # # write file to s3
+    # s3write_using(
+    #   pl_update,
+    #   FUN = write_csv,
+    #   object = paste0(prefix, tile_list),
+    #   bucket = bucket
+    # )
     
     # download tiles
     message(paste(
@@ -108,7 +131,7 @@ tile_picker <-
   }
 
 tile_picker(
-  tile_list = "croz_20191202_validation_tile_list.csv",
+  tile_list = data_tab,
   bucket = bucket,
   prefix = prefix,
   initials = "AS",
@@ -128,11 +151,14 @@ tile_picker(
 update_labs <- 
   function(bucket,
            prefix,
-           tile_list){
+           tile_list,
+           id){
     
     
     require(tidyverse)
     require(aws.s3)
+    require(googledrive)
+    require(googlesheets4)
     # wd = getwd()
     
     # read in label key file
@@ -159,32 +185,31 @@ update_labs <-
       
       
   # check if table of labels already exists
-    try(
+    # get google drive id for validation data sheet
      existing_labs <-
-       s3read_using(
-        read_csv,
-        object = paste0(prefix, label_tab), 
-        bucket = bucket,
-        show_col_types = FALSE,
-        )
-    )
-    if(exists("existing_labs")){
+       read_sheet(ss = id, 
+                  sheet = "label_data",
+                  col_types = "ccnnnn")
+         
+       # s3read_using(
+       #  read_csv,
+       #  object = paste0(prefix, label_tab), 
+       #  bucket = bucket,
+       #  show_col_types = FALSE,
+       #  )
       comb_labs <- 
         full_join(
           existing_labs,
           new_labs,
           by = c("tileName", "label", "x", "y", "width", "height"))
-    }else{
-      comb_labs <- 
-        new_labs
-    }
-    
-      s3write_using(
-      comb_labs,
-      FUN = write_csv,
-      object = paste0(prefix,label_tab),
-      bucket = bucket
-    )
+
+      # s3write_using(
+      # comb_labs,
+      # FUN = write_csv,
+      # object = paste0(prefix,label_tab),
+      # bucket = bucket
+      
+      write_sheet(comb_labs, ss = id, sheet = "label_data")
       
     # update tagged column in pick list
     message("Updating tile list with tiles tagged")
@@ -198,24 +223,30 @@ update_labs <-
       mutate(tagged =1)
     
     # first need to load most current version of picklist and what is not yet tagged
-    pl <- s3read_using(
-      read_csv,
-      object = paste0(prefix, tile_list),
-      bucket = bucket,
-      show_col_types = FALSE
-    ) 
+    # pl <- s3read_using(
+    #   read_csv,
+    #   object = paste0(prefix, tile_list),
+    #   bucket = bucket,
+    #   show_col_types = FALSE
+    # ) 
     
+    pl <-
+      read_sheet(ss = id,
+                 sheet = "tile_list",
+                 col_types = "cnncTnnnn")
     
     # update picklist
-    pl_update <- rows_update(pl, tagged, copy = TRUE, by = tileName)
+    pl_update <- rows_update(pl, tagged, copy = TRUE, by = "tileName")
+    
+    sheet_write(pl_update, ss = id, sheet = "label_data")
     
     # write file to s3
-    s3write_using(
-      pl_update,
-      FUN = write_csv,
-      object = paste0(prefix, tile_list),
-      bucket = bucket
-    )
+    # s3write_using(
+    #   pl_update,
+    #   FUN = write_csv,
+    #   object = paste0(prefix, tile_list),
+    #   bucket = bucket
+    # )
     
     message('Ready to clear working directory? (enter [y] to clear)')
     var <- readline()
