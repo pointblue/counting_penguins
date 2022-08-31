@@ -73,12 +73,23 @@ pick_list_df <-
 #               object = paste0(prefix, pl_name),
 #               bucket = bucket)
 # drive_create("Antarctica/Projects/counting_penguins/test", type = "spreadsheet")
+
+# check if sheet exists
+id <- drive_get(pl_name)$id
+if(length(id) == 0){
 gs4_create(pl_name, sheets = pick_list_df)
 id <- drive_get(pl_name)$id
 # rename sheet
 sheet_rename(id,
              sheet = "pick_list_df",
              new_name = "tile_list")
+} else {
+  sheet_write(pick_list_df,
+              ss = id,
+              sheet = "tile_list"
+  )
+}
+
 # sheet_add(id,
 #           sheet = "label_data"
 # )

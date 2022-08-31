@@ -27,7 +27,7 @@
 # "croz_20191202_validation_data"
 # 
 # 
-# wd = "C:/Users/aschmidt/Desktop/test_images/"
+wd = "C:/Users/aschmidt/Desktop/test_images/"
 # 
 # Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
 # 
@@ -207,7 +207,7 @@ update_labs <-
     
     # s3read_using(
     #  read_csv,
-    #  object = paste0(prefix, label_tab),
+    #  object = paste0(prefix, label_ta
     #  bucket = bucket,
     #  show_col_types = FALSE,
     #  )
@@ -252,7 +252,7 @@ update_labs <-
     pl_update <-
       rows_update(pl, tagged, copy = TRUE, by = "tileName")
     
-    sheet_write(pl_update, ss = id, sheet = "label_data")
+    sheet_write(pl_update, ss = id, sheet = "tile_list")
     
     # write file to s3
     # s3write_using(

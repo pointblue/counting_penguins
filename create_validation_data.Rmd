@@ -29,25 +29,25 @@ source("scripts/validation_functions.R")
 ```{r setup google environment}
 # these are for google drive access
 # the first time you run this you will need to authorize R to access google drive
-drive_auth()
-gs4_auth(token = drive_token())
+# drive_auth()
+# gs4_auth(token = drive_token())
 # provide
 file_url <-
-  "https://docs.google.com/spreadsheets/d/17iHRZ1X7I7WElIc58oFs3722-C6oI3sibmtezmuUFyo/edit#gid=655021584"
+  "https://docs.google.com/spreadsheets/d/12v3ViLtCePuyHsTxyx735qKxZydHxMzCetm6k7Ec6IE/edit?usp=sharing"
 
 ```
 
 ```{r set up aws} 
 # set these for aws access
 # set region for s3 bucket access
-Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
+Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
 
 # some of these used by both functions
 bucket <- 
-  "s3://pb-adelie/"
+  "s3://deju-penguinscience/"
 
 prefix <-
-"1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
+"PenguinCounting/croz_20191202_tiles/"
 
 
 # set your temporary working directory
