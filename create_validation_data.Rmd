@@ -1,0 +1,82 @@
+---
+title: "Create Validation Data"
+author: "Annie Schmidt"
+date: "8/24/2022"
+output: html_document
+---
+## Overview
+This .Rmd is set up to create a validation data set of labeled images for testing YOLO predictions.
+It is intended to be run in multiple sessions to continue adding to the data set.
+It requires a subset of images already randomly selected and placed in their own subdirectory in an aws s3 bucket.
+It also requires an R script, validation_functions.R that has two essential functions.
+
+## Getting set up
+```{r setup, eval = TRUE, results = 'hide', message = FALSE, warning = FALSE}
+
+library(tidyverse)
+library(aws.s3)
+# source functions you will be using
+# set this path to wherever you save the r script (recommend just saving to desktop)
+source("scripts/validation_functions.R")
+
+```
+
+## Download images to tag
+This function will check the pick list for available images, download the images, and update the picklist.
+There is no undo so make sure you complete the images you download.
+Running the function will also place a label key in the specified directory that can be used with makesense.ai
+For current test parameters are as follows:
+```{r run tile picker}
+
+# set these parameters
+# some used by both functions
+bucket <- 
+  "s3://pb-adelie/"
+
+prefix <-
+"1920_UAV_survey/orthomosaics/croz/191202/croz_20191202_tiles/"
+
+tile_list <-
+  "croz_20191202_validation_tile_list.csv"
+
+wd <-
+  "set_to_your_working directory/" # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
+
+label_tab <-
+  "croz_20191202_validation_labels.csv"
+
+initials <-
+  "your_initials"
+
+
+
+# Run tile picker function including your initials
+# n = the number of images it will down load. Recommend doing small chunks of 3-5 so you can ensure you complete them all
+tile_picker(
+ tile_list = tile_list,
+ bucket = bucket,
+ prefix = prefix,
+ initials = initials,
+ wd = wd,
+ n = 5)
+
+# now you can upload the images to makesense.ai to tag
+# once done with tagging, make sure to export annotations as a zip file in YOLO format and continue to next step
+
+```
+
+## Upload label data and combine with existing data
+Run update_labs function to update label data in s3
+
+```{r run label updater}
+# function will prompt you to select the .zip file you just exported
+# it will update the label.csv and the tile list to summarize which tiles were tagged and how many labels of each class were in each tile
+# it will also clear your working directory but will prompt you to confirm first
+# if you enter anything other that "y", the function will exit without clearing the files
+
+update_labs(
+  bucket,
+  prefix,
+  tile_list)
+
+```
