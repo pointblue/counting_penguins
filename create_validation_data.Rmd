@@ -24,18 +24,20 @@ library(aws.s3)
 source("scripts/validation_functions.R")
 
 
-# set up some parameters
-
+```
+## set up some parameters
+```{r setup google environment}
 # these are for google drive access
 # the first time you run this you will need to authorize R to access google drive
 drive_auth()
 gs4_auth(token = drive_token())
-data_tab <-
-  "croz_20191202_validation_tile_list"
-# get file id of google sheet
-id <- drive_get(data_tab)$id
+# provide
+file_url <-
+  "https://docs.google.com/spreadsheets/d/17iHRZ1X7I7WElIc58oFs3722-C6oI3sibmtezmuUFyo/edit#gid=655021584"
 
+```
 
+```{r set up aws} 
 # set these for aws access
 # set region for s3 bucket access
 Sys.setenv("AWS_DEFAULT_REGION" = "us-west-2")
@@ -76,7 +78,7 @@ tile_picker(
  initials = initials,
  wd = wd,
  n = 5, 
- id = id)
+ file_id = file_url)
 
 # now you can upload the images to makesense.ai to tag
 # once done with tagging, make sure to export annotations as a zip file in YOLO format and continue to next step
@@ -95,6 +97,6 @@ Run update_labs function to update label data in s3
 update_labs(
   bucket,
   prefix,
-  tile_list)
+  file_id = file_url)
 
 ```
