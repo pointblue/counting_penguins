@@ -161,12 +161,13 @@ tile_picker <-
 update_labs <-
   function(bucket,
            prefix,
-           file_id) {
+           file_id,
+           wd) {
     require(tidyverse)
     require(aws.s3)
     require(googledrive)
     require(googlesheets4)
-    # wd = setwd(wd)
+    wd = setwd(wd)
     id = file_id
     
     # read in label key file
