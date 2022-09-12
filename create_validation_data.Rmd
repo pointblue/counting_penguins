@@ -26,7 +26,7 @@ source("scripts/validation_functions.R")
 # set your temporary working directory
 # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
 wd <-
-  "set_to_your_wd"
+  "C:/Users/aschmidt/Desktop/test_images/"
 
 ```
 ## set up some parameters
