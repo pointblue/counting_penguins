@@ -52,7 +52,7 @@ tile_picker <-
     # do this randomly so aren't processing tiles sequentially
     # first filter pl to tiles that haven't yet been tagged
     set <-
-      filter(pl, !downloaded == 1 &
+      filter(pl,!downloaded == 1 &
                !tagged == 1) %>%
       slice_sample(n = n) %>%
       mutate(
@@ -74,8 +74,9 @@ tile_picker <-
     if (length(list.files(pattern = ".jpg")) > 0) {
       dl <- readline(prompt =
                        "Warning: working directory contains image tiles already \nWould you like to proceed with downloading more?")
-    }else{
-      dl <- "y"}
+    } else{
+      dl <- "y"
+    }
     if (dl == "y") {
       # download tiles from s3 bucket
       for (i in 1:nrow(set)) {
@@ -102,19 +103,20 @@ tile_picker <-
           file = paste0(wd, "label_key.txt"),
           overwrite = TRUE
         )
+        
+        # update downloaded field in picklist
+        pl_update <- rows_update(pl, set, by = "tileName")
+        
+        # update google sheet
+        sheet_write(pl_update, ss = id, sheet = "tile_list")
       }
     } else {
       message("Download aborted, please upload labels to clear working directory")
     }
     
-    # update downloaded field in picklist
-    pl_update <- rows_update(pl, set, by = "tileName")
     
-    # update google sheet
-    sheet_write(pl_update, ss = id, sheet = "tile_list")
-      
-      
-    }
+    
+  }
     
     # Function2:
     # run when done with tagging session
@@ -126,120 +128,128 @@ tile_picker <-
     # update picklist with tagged
     # summarize how many tiles remain
     
-    update_labs <-
-      function(bucket,
-               prefix,
-               file_id,
-               wd) {
-        # libraries required
-        require(tidyverse)
-        require(aws.s3)
-        require(googledrive)
-        require(googlesheets4)
-        
-        # set temp working dir
-        wd = setwd(wd)
-        id = file_id
-        
-        # read in label key file
-        labs <-
-          read_delim(
-            "label_key.txt",
-            delim = ",",
-            col_names = "label",
-            show_col_types = FALSE
-          ) %>%
-          mutate(lab_key = c(0, 1, 2, 3))
-        
-        # read in tables with annotations in file_location
-        lab_tab <-
-          file.choose()
-        
-        # unzip files to local directory
-        unzip(lab_tab, exdir = getwd())
-        files <- list.files(pattern = "(\\d{1,3}.txt)$")
-        
-        # format labels for table
-        new_labs <-
-          map(.x = files,
-              ~ read_delim(.x, col_names = FALSE, show_col_types = FALSE)) %>%
-          map2(.y = files, ~ mutate(.x, tileName = .y)) %>%
-          bind_rows() %>%
-          rename(
-            lab_key = X1,
-            x = X2,
-            y = X3,
-            width = X4,
-            height = X5
-          ) %>%
-          # remove .txt from tileName
-          mutate(tileName = str_extract(tileName, "(.+)(?=.txt)")) %>%
-          left_join(labs, by = "lab_key") %>%
-          select (tileName, label, x, y, width, height)
-        
-        # append new data to existing label data sheet
-        sheet_append(ss = id, new_labs, sheet = "label_data")
-        
-        # update tagged column in pick list
-        message("Updating tile list with tiles tagged")
-        
-        # create summary table of tiles tagged
-        tagged <-
-          new_labs %>%
-          group_by(tileName, label) %>%
-          tally() %>%
-          pivot_wider(names_from = label, values_from = n) %>%
-          mutate(tagged = 1)
-        
-        # read in tile list again
-        pl <-
-          read_sheet(ss = id,
-                     sheet = "tile_list",
-                     col_types = "cnncTnnnn")
-        
-        # update picklist
-        pl_update <-
-          rows_update(pl, tagged, copy = TRUE, by = "tileName")
-        
-        # overwite tile list with updated data
-        sheet_write(pl_update, ss = id, sheet = "tile_list")
-        
-        #summarize how many tiles tagged
-        tot_tag <-
-          filter(pl_update, tagged == 1) %>%
-          nrow()
-        
-        # print summary of how many updated and how many tiles remain
-        message(
-          paste(
-            "Updated labels for",
-            nrow(tagged),
-            "tiles",
-            "\n",
-            tot_tag,
-            "of",
-            nrow(pl),
-            paste0("(", tot_tag * 100 / nrow(pl), "%", ")"),
-            "complete"
-          )
-        )
-        
-        # prompt to clear working directory
-        var <-
-          readline(prompt = 'Ready to clear working directory? (enter [y] to clear)')
-        # clear working directory
-        if (var == "y") {
-          unlink(list.files(), force = TRUE)
-        }
-        if (length(list.files()) > 0) {
-          file_ls <- list.files()
-          message(paste(
-            "working directory not cleared",
-            "\n files remaining:",
-            file_ls
-          ))
-        } else {
-          message("working directory cleared")
-        }
-      }
+update_labs <-
+  function(bucket,
+           prefix,
+           file_id,
+           wd) {
+    # libraries required
+    require(tidyverse)
+    require(aws.s3)
+    require(googledrive)
+    require(googlesheets4)
     
+    # set temp working dir
+    wd = setwd(wd)
+    id = file_id
+    
+    # read in label key file
+    labs <-
+      read_delim(
+        "label_key.txt",
+        delim = ",",
+        col_names = "label",
+        show_col_types = FALSE
+      ) %>%
+      mutate(lab_key = c(0, 1, 2, 3))
+    
+    # read in tables with annotations in file_location
+    lab_tab <-
+      file.choose()
+    
+    # unzip files to local directory
+    unzip(lab_tab, exdir = getwd())
+    files <- list.files(pattern = "(\\d{1,3}.txt)$")
+    
+    # format labels for table
+    new_labs <-
+      map(.x = files,
+          ~ read_delim(.x, col_names = FALSE, show_col_types = FALSE)) %>%
+      map2(.y = files, ~ mutate(.x, tileName = .y)) %>%
+      bind_rows() %>%
+      rename(
+        lab_key = X1,
+        x = X2,
+        y = X3,
+        width = X4,
+        height = X5
+      ) %>%
+      # remove .txt from tileName
+      mutate(tileName = str_extract(tileName, "(.+)(?=.txt)")) %>%
+      left_join(labs, by = "lab_key") %>%
+      select (tileName, label, x, y, width, height)
+    
+    # append new data to existing label data sheet
+    sheet_append(ss = id, new_labs, sheet = "label_data")
+    
+    # update tagged column in pick list
+    message("Updating tile list with tiles tagged")
+    
+    # create summary table of tiles tagged
+    tagged <-
+      new_labs %>%
+      group_by(tileName, label) %>%
+      tally() %>%
+      pivot_wider(names_from = label, values_from = n) %>%
+      mutate(tagged = 1)
+    
+    # read in tile list again
+    pl <-
+      read_sheet(ss = id,
+                 sheet = "tile_list",
+                 col_types = "cnncTnnnn")
+    
+    # update picklist
+    pl_update <-
+      rows_update(pl, tagged, copy = TRUE, by = "tileName")
+    
+    # overwite tile list with updated data
+    sheet_write(pl_update, ss = id, sheet = "tile_list")
+    
+    #summarize how many tiles tagged
+    tot_tag <-
+      filter(pl_update, tagged == 1) %>%
+      nrow()
+    
+    # print summary of how many updated and how many tiles remain
+    message(
+      paste(
+        "Updated labels for",
+        nrow(tagged),
+        "tiles",
+        "\n",
+        tot_tag,
+        "of",
+        nrow(pl),
+        paste0("(", tot_tag * 100 / nrow(pl), "%", ")"),
+        "complete"
+      )
+    )
+    
+    # print summary of how many tiles processed by initials
+    pl_inits <- 
+      pl_update %>%
+      group_by(initials) %>% 
+      tally()
+    
+    message("tally by initials:")
+    print(pl_inits)
+    
+    # prompt to clear working directory
+    var <-
+      readline(prompt = 'Ready to clear working directory? (enter [y] to clear)')
+    # clear working directory
+    if (var == "y") {
+      unlink(list.files(), force = TRUE)
+    }
+    if (length(list.files()) > 0) {
+      file_ls <- list.files()
+      message(paste(
+        "working directory not cleared",
+        "\n files remaining:",
+        file_ls
+      ))
+    } else {
+      message("working directory cleared")
+    }
+  }
