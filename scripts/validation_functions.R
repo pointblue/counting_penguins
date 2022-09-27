@@ -232,8 +232,8 @@ update_labs <-
       group_by(initials) %>% 
       tally()
     
-    message("tally by initials:")
-    print(pl_inits)
+    message("Tally by initials:")
+    print(as.data.frame(pl_inits))
     
     # prompt to clear working directory
     var <-
