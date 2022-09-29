@@ -1,0 +1,146 @@
+Here's how we create a container and allow it to listen in detached mode on a port, all in an EC2 machine
+
+1) Lauch the machine (of whatever size we want), make it an ubuntu machine
+
+2) Install docker  (https://docs.docker.com/engine/install/ubuntu/)
+	sudo apt-get remove docker docker-engine docker.io containerd runc
+	sudo apt-get update
+	sudo apt-get install \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+3) Create a directory for the app and docker files, and install the web service Flask
+	mkdir adpe-counting
+	cd adpe-counting
+	sudo apt install python3-pip
+	pip3 install Flask
+ 	pip3 freeze | grep Flask >> requirements.txt
+ 
+4) Create the app in a demo folder and insert the app code:
+	mkdir demo
+	cd demo
+	vi __init__.py
+	
+from flask import Flask
+	
+def create_app():
+    app = Flask(__name__)
+
+    @app.route('/')
+    def index():
+        return '<h1>Hey There!</h1>'
+
+    return app
+
+(save it)
+
+5) Add enironment parameters for flask - here pointing to the folder where the app is: demo
+vi .flaskenv
+
+FLASK_APP=demo
+
+(save it)
+
+5) Test the application locally:
+	python3 -m flask run
+	
+	Then...launch another terminal window
+	cd adpe-counting
+	curl http://localhost:5000 
+	
+
+
+(You should see the response "Hey There!" in the new terminal, and in the original where you launched flask, a 200 code)
+(kill the new terminal window)
+(Ctrl + C to kill the flask service)
+
+6) Add an environment variable to alter the output. In the main folder (not in demo):
+vi .env
+HI_TO=Leo
+
+7) In the demo folder, we must create a settings file to load the environment variable into flask
+	cd demo
+	vi settings.py
+
+from os import environ 
+
+HI_TO = environ.get('HI_TO')
+
+(save it)
+
+8) Edit the app file - still in the demo folder
+	vi __init__.py
+
+from flask import Flask
+from dotenv import load_dotenv
+
+def create_app():
+    app = Flask(__name__)
+
+    app.config.from_pyfile('settings.py')
+    load_dotenv('.env')
+
+    @app.route('/')
+    def index():
+        hito = str(app.config.get("HI_TO"))
+        msg = 'Hey There ' + hito + '!'
+        return msg
+
+    return app
+	
+(save it)
+
+9) Test it! Not in demo
+flask run
+(then open another terminal and query the app)
+
+10) Put it in a container. Create the Dockerfile, in the adpe-counting directory.. (not in demo)
+	vi Dockerfile
+
+#using a slim image with python3.8...
+FROM python:3.8-slim-buster
+
+# make the /app dir the workdir
+WORKDIR /app
+
+#copy the requirements.txt file into this app directory - this file has a list of all the python libraries you need installed
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
+
+# Now copy all other code files in adpe-counting to /app. Presently that should just be adpe-app.py, but that file may source your code file and run your functions instead, for example
+COPY . .
+  
+#Set the default value of the HI_TO variable
+ENV HI_TO=Leo
+
+CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0"]
+
+(save the Dockerfile)
+
+11) Build it:
+	sudo docker build --tag hello-adpe .
+	
+12) Let's run it detached and listening to port 8000
+	docker run -d -p 8000:5000 hello-adpe:latest
+	
+13) Test remotely. Open an R session in your laptop, then:
+library(httr)
+b<-"http://ec2-18-117-179-193.us-east-2.compute.amazonaws.com:8000"
+r<-GET(b)
+content(r,"text")
+
+14) after the test, stop the container:
+sudo docker stop 63e8ceaf212d
+
+ 
+
+
