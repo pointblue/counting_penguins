@@ -1,0 +1,111 @@
+---
+title: "Create Validation Data"
+author: "Annie Schmidt"
+date: "8/24/2022"
+output: html_document
+---
+## Overview
+This .Rmd is set up to create a validation data set of labeled images for testing YOLO predictions.
+It is intended to be run in multiple sessions to continue adding to the data set.
+It requires a subset of images already randomly selected and placed in their own subdirectory in an aws s3 bucket.
+It also requires an R script, validation_functions.R that has two essential functions.
+
+## Getting set up
+```{r setup, eval = TRUE, results = 'hide', message = FALSE, warning = FALSE}
+# packages required
+library(tidyverse)
+library(googledrive)
+library(googlesheets4)
+library(aws.s3)
+
+# source functions you will be using
+# if running this from wherever you cloned the repo, shouldn't need to alter this path
+# can make changes to this .Rmd and save them locally, but don't push to repo
+source("scripts/validation_functions.R")
+
+# set your temporary working directory
+# NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
+wd <-
+  "set_to_to_your_wd"
+
+```
+## set up some parameters
+```{r setup google environment}
+
+# provide url for google sheet that is tracking and collecting label data
+file_url <-
+  "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
+
+
+# these commands are for google drive access
+# the first time you run this you will need to authorize R to access google drive
+drive_auth()
+gs4_auth(token = drive_token())
+
+```
+
+```{r set up aws} 
+# for aws s3 access
+# set region for s3 bucket access
+Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
+
+# some of these used by both functions
+bucket <- 
+  "s3://deju-penguinscience/"
+
+prefix <-
+"PenguinCounting/croz_20191202/tiles/"
+
+
+```
+
+## Download images to tag
+This function will check the pick list for available images, download the images, and update the picklist.
+There is no undo so make sure you complete the images you download.
+Running the function will also place a label key in the specified directory that can be used with makesense.ai
+For current test parameters are as follows:
+```{r run tile picker, echo=TRUE, message=FALSE, warning=TRUE}
+# Run tile picker function 
+
+# ****NOTE:this function requires user input so cannot run as a chunk ****
+
+# input initials using initials argument
+# if not provided, function will prompt for initials
+# function will also ask how many images you want to download
+# Recommend doing small chunks of 3-5 so you can ensure you complete them all
+
+# if complete a set and want to download another set in the same session, can start here and just re-run the tile picker function
+
+tile_picker(
+ tile_list = data_tab,
+ bucket = bucket,
+ prefix = prefix,
+ file_id = file_url,
+ wd = wd)
+
+# now you can upload the images to makesense.ai to tag
+# once done with tagging, make sure to export annotations as a zip file in YOLO format and continue to next step
+
+```
+
+## Upload label data and combine with existing data
+Run update_labs function to update label data in s3
+
+```{r run label updater}
+# ****NOTE: This function requires interactive input so cannot be run as a chunk ****
+
+# function will prompt you to select the .zip file you just exported. Unless you moved it, it will be in your downloads folder
+
+# The update_labs function will update the label.csv and the tile list to summarize which tiles were tagged and how many labels of each class were in each tile
+
+# it will also clear your working directory but will prompt you to confirm first
+
+# if you enter anything other that "y", the function will exit without clearing the files
+
+update_labs(
+  bucket,
+  prefix,
+  file_id = file_url,
+  wd = wd)
+
+```
