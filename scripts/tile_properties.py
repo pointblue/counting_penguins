@@ -18,7 +18,7 @@ import re #regular expressions for Python
 
 '''specifics about where your tiles are (assumes S3)'''
 my_bucket_name = "deju-penguinscience"
-my_prefix = "PenguinCounting/croz_20191202_tiles/"
+my_prefix = "PenguinCounting/croz_20191202/tiles"
 
 #Some general S3 stuff for functions below
 s3_paginator = boto3.client('s3').get_paginator('list_objects_v2')
