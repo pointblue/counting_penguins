@@ -33,6 +33,12 @@ wd <-
 ```{r setup google environment}
 
 # provide url for google sheet that is tracking and collecting label data
+# previous sheet completed:
+# Croz 2019-12-02
+# file_url <-
+#   "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
+
+# Croz 2020-11-29
 file_url <-
   "https://docs.google.com/spreadsheets/d/1X5wiX5Tw3jpLWJC9sh05_uhKSAQMDJ6pWAgL9y0j4Gk/edit?usp=sharing"
 
@@ -52,6 +58,11 @@ Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
 # some of these used by both functions
 bucket <- 
   "s3://deju-penguinscience/"
+
+# previous set completed:
+# Croz 2019-12-02
+# prefix <- 
+#   "PenguinCounting/croz_20191202/tiles/"
 
 prefix <-
 "PenguinCounting/croz_20201129/tiles/"
