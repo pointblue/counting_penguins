@@ -178,9 +178,18 @@ update_labs <-
       mutate(tileName = str_extract(tileName, "(.+)(?=.txt)")) %>%
       left_join(labs, by = "lab_key") %>%
       select (tileName, label, x, y, width, height)
+
     
-    # append new data to existing label data sheet
-    sheet_append(ss = id, new_labs, sheet = "label_data")
+    # in case the same set of labels gets uploaded again, read in label sheet
+    # append new data 
+    # and remove dups and overwrite
+    read_sheet(ss = id,
+               sheet = "label_data",
+               col_types = "ccnnnn") %>%
+      # append new data to existing label data sheet
+      bind_rows(new_labs) %>%
+      distinct() %>%
+      sheet_write(ss = id, sheet = "label_data")
     
     # update tagged column in pick list
     message("Updating tile list with tiles tagged")

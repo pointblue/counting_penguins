@@ -26,7 +26,7 @@ source("scripts/validation_functions.R")
 # set your temporary working directory
 # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
 wd <-
-  "set_to_to_your_wd"
+  "set_to_your_wd"
 
 ```
 ## set up some parameters
@@ -34,7 +34,7 @@ wd <-
 
 # provide url for google sheet that is tracking and collecting label data
 file_url <-
-  "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
+  "https://docs.google.com/spreadsheets/d/1X5wiX5Tw3jpLWJC9sh05_uhKSAQMDJ6pWAgL9y0j4Gk/edit?usp=sharing"
 
 
 # these commands are for google drive access
@@ -54,7 +54,7 @@ bucket <-
   "s3://deju-penguinscience/"
 
 prefix <-
-"PenguinCounting/croz_20191202/tiles/"
+"PenguinCounting/croz_20201129/tiles/"
 
 
 ```
