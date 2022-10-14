@@ -244,6 +244,15 @@ update_labs <-
     message("Tally by initials:")
     print(as.data.frame(pl_inits))
     
+    #make a chart
+    fig1<-ggplot(as.data.frame(pl_inits), aes(x=initials, y=n, fill=initials)) +
+      geom_bar(stat="identity", color="black") +
+      scale_fill_brewer(palette="Set2") +
+      ggtitle(paste0(prefix,": n counted by initials")) +
+      theme_minimal()
+    
+    print(fig1)
+    
     # prompt to clear working directory
     var <-
       readline(prompt = 'Ready to clear working directory? (enter [y] to clear)')
