@@ -258,7 +258,10 @@ update_labs <-
     print(as.data.frame(pl_inits))
     
     #make a chart
-    fig1<-ggplot(as.data.frame(pl_inits), aes(x=initials, y=n, fill=initials)) +
+    fig1<-
+      pl_inits %>%
+      filter(!is.na(initials)) %>%
+      ggplot(aes(x=initials, y=n, fill=initials)) +
       geom_bar(stat="identity", color="black") +
       scale_fill_brewer(palette="Set2") +
       ggtitle(paste0(prefix,": n counted by initials")) +
