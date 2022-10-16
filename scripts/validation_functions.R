@@ -27,6 +27,19 @@ tile_picker <-
     require(googlesheets4)
     require(aws.s3)
     
+    # check if provided path for images has trailing slash
+    if(substr(wd, nchar(wd), nchar(wd)) == "\\" |
+        substr(wd, nchar(wd), nchar(wd)) == "/") {
+    setwd(wd)
+    }else{
+      message(
+        "Warning: working directory path missing trailing slash, please add and re-save to environment before continuing"
+      )
+    }
+    stopifnot(substr(wd, nchar(wd), nchar(wd)) == "\\" |
+                substr(wd, nchar(wd), nchar(wd)) == "/")
+    
+    
     # set temp working dir
     setwd(wd)
     
