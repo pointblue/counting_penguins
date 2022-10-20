@@ -6,14 +6,16 @@ import os
 from argparse import Namespace
 import sys
 import glob
-import detect
 
 path_to_objCounter='/home/ubuntu/Workspace/counting_penguins/counter/'
+path_to_yolo='/home/ubuntu/Workspace/yolov5'
 
 import sys
 sys.path.insert(0, path_to_objCounter)
+sys.path.insert(0, path_to_yolo)
 
 from counter import Counter
+import detect
 
 tileDir="/home/ubuntu/Workspace/tiles/"
 
