@@ -103,13 +103,13 @@ tile_picker <-
           file = paste0(wd, "label_key.txt"),
           overwrite = TRUE
         )
-        
+       } 
         # update downloaded field in picklist
         pl_update <- rows_update(pl, set, by = "tileName")
         
         # update google sheet
         sheet_write(pl_update, ss = id, sheet = "tile_list")
-      }
+      
     } else {
       message("Download aborted, please upload labels to clear working directory")
     }
