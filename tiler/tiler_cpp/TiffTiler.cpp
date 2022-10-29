@@ -1,5 +1,12 @@
 //  TiffTiler.cpp
-//  Created by Tim DeBenedictis on 10/25/22.
+//  Created by Tim DeBenedictis (timd@southernstars.com) on 10/25/22.
+//  This program subdivides a large ortho TIFF file - much larger than will fit
+//  into physical RAM - into many small JPEG tiles.
+//  THIS IS VERY MUCH A WORK IN PROGRESS.
+//  Things still needed to do:
+//  - Write summary CSV file
+//  - Extract geo-referencing information from TIFF headers (maybe use GDAL?)
+//  - Apply overlap/buffer margin to tiles
 
 #include <stdio.h>
 #include <stdint.h>
@@ -7,6 +14,7 @@
 #include <string.h>
 #include <tiffio.h>
 #include <jpeglib.h>
+#include <math.h>
 #include <setjmp.h>
 
 #include <string>
@@ -23,7 +31,7 @@
 // gcc -o tifftiler TiffTiler.cpp -I/usr/include  -L/usr/lib -ltiff  -ljpeg -lstdc++
 
 // To run:
-// ./tifftiler orthos/croz_2020-11-29_all_col.tif
+// ./tifftiler orthos/croz_2020-11-29_all_col.tif tiles
 
 typedef struct GImage
 {
@@ -156,9 +164,65 @@ void GGetImageColorTableEntry ( GImagePtr image, unsigned char index,
     *blue  = ( image->colortable[index] >> 16 ) & 0x000000FF;
 }
 
-/*** GCreateSubframeImage **/
+/*** GGetPixelColor ************************************************************/
 
-GImagePtr GCreateSubframeImage ( GImagePtr image, int subLeft, int subTop, int subWidth, int subHeight )
+void GGetPixelColor ( GImagePtr pImage, unsigned char *pPixel, float pRGBA[4] )
+{
+    if ( pImage->depth == 32 )
+    {
+        pRGBA[0] = pPixel[0];
+        pRGBA[1] = pPixel[1];
+        pRGBA[2] = pPixel[2];
+        pRGBA[3] = pPixel[3];
+    }
+    else if ( pImage->depth == 24 )
+    {
+        pRGBA[0] = pPixel[0];
+        pRGBA[1] = pPixel[1];
+        pRGBA[2] = pPixel[2];
+        pRGBA[3] = 0;
+    }
+    else
+    {
+        unsigned char red, green, blue;
+        
+        GGetImageColorTableEntry ( pImage, *pPixel, &red, &green, &blue );
+        
+        pRGBA[0] = red;
+        pRGBA[1] = green;
+        pRGBA[2] = blue;
+        pRGBA[3] = 0;
+    }
+}
+
+/*** GSetPixelColor ************************************************************/
+
+void GSetPixelColor ( GImagePtr pImage, unsigned char *pPixel, float pRGBA[4] )
+{
+    if ( pImage->depth == 32 )
+    {
+        pPixel[0] = pRGBA[0] < 0 ? 0 : pRGBA[0] > 255 ? 255 : pRGBA[0];
+        pPixel[1] = pRGBA[1] < 0 ? 0 : pRGBA[1] > 255 ? 255 : pRGBA[1];
+        pPixel[2] = pRGBA[2] < 0 ? 0 : pRGBA[2] > 255 ? 255 : pRGBA[2];
+        pPixel[3] = pRGBA[3] < 0 ? 0 : pRGBA[3] > 255 ? 255 : pRGBA[3];
+    }
+    else if ( pImage->depth == 24 )
+    {
+        pPixel[0] = pRGBA[0] < 0 ? 0 : pRGBA[0] > 255 ? 255 : pRGBA[0];
+        pPixel[1] = pRGBA[1] < 0 ? 0 : pRGBA[1] > 255 ? 255 : pRGBA[1];
+        pPixel[2] = pRGBA[2] < 0 ? 0 : pRGBA[2] > 255 ? 255 : pRGBA[2];
+    }
+    else
+    {
+        float    f = RGB_TO_LUMINANCE ( pRGBA[0], pRGBA[1], pRGBA[2] );
+        
+        pPixel[0] = f < 0 ? 0 : f > 255 ? 255 : f;
+    }
+}
+
+/*** GCreateSubImage **/
+
+GImagePtr GCreateSubImage ( GImagePtr image, int subLeft, int subTop, int subWidth, int subHeight )
 {
     int width = GGetImageWidth ( image );
     int height = GGetImageHeight ( image );
@@ -183,6 +247,234 @@ GImagePtr GCreateSubframeImage ( GImagePtr image, int subLeft, int subTop, int s
     }
 
     return subImage;
+}
+
+/*** GResampleImage ******************************************************/
+
+GImagePtr GResampleImage ( GImagePtr oldImage, int newDepth )
+{
+    int                row, col;
+    int                width = (int) GGetImageWidth ( oldImage );
+    int                height = (int) GGetImageHeight ( oldImage );
+    int                oldDepth = (int) GGetImageDepth ( oldImage );
+    unsigned char    red, green, blue, *newData = NULL, *oldData = NULL;
+
+    // Sanity check input parameters.
+    
+    if ( oldImage == NULL || ( newDepth != 8 && newDepth != 24 && newDepth != 32 ) )
+        return ( NULL );
+    
+    // Create new image with new desired bits-per-pixel
+    
+    GImagePtr    newImage = GCreateImage ( width, height, newDepth );
+    if ( newImage == NULL )
+        return ( NULL );
+        
+    // Copy color table from old to new image
+    
+    for ( int index = 0; index < 256; index++ )
+        newImage->colortable[index] = oldImage->colortable[index];
+
+    for ( row = 0; row < height; row++ )
+    {
+        oldData = (unsigned char *) GGetImageDataRow ( oldImage, row );
+        newData = (unsigned char *) GGetImageDataRow ( newImage, row );
+        
+        if ( newDepth == oldDepth )
+        {
+            memcpy ( newData, oldData, GGetImageDataRowSize ( oldImage ) );
+        }
+        else if ( newDepth == 8 )
+        {
+            if ( oldDepth == 24 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    red   = oldData[3 * col];
+                    green = oldData[3 * col + 1];
+                    blue  = oldData[3 * col + 2];
+                    newData[ col ] = RGB_TO_LUMINANCE ( red, green, blue );
+                }
+            }
+            else if ( oldDepth == 32 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    red   = oldData[4 * col];
+                    green = oldData[4 * col + 1];
+                    blue  = oldData[4 * col + 2];
+                    newData[ col ] = RGB_TO_LUMINANCE ( red, green, blue );
+                }
+            }
+        }
+        else if ( newDepth == 24 )
+        {
+            if ( oldDepth == 8 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    GGetImageColorTableEntry ( oldImage, oldData[col], &red, &green, &blue );
+                    newData[3 * col]     = red;
+                    newData[3 * col + 1] = green;
+                    newData[3 * col + 2] = blue;
+                }
+            }
+            else if ( oldDepth == 32 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    newData[3 * col]     = oldData[4 * col];
+                    newData[3 * col + 1] = oldData[4 * col + 1];
+                    newData[3 * col + 2] = oldData[4 * col + 2];
+                }
+            }
+        }
+        else if ( newDepth == 32 )
+        {
+            if ( oldDepth == 8 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    GGetImageColorTableEntry ( oldImage, oldData[col], &red, &green, &blue );
+                    newData[4 * col]     = red;
+                    newData[4 * col + 1] = green;
+                    newData[4 * col + 2] = blue;
+                    newData[4 * col + 3] = 255;
+                }
+            }
+            else if ( oldDepth == 24 )
+            {
+                for ( col = 0; col < width; col++ )
+                {
+                    newData[4 * col]     = oldData[3 * col];
+                    newData[4 * col + 1] = oldData[3 * col + 1];
+                    newData[4 * col + 2] = oldData[3 * col + 2];
+                    newData[4 * col + 3] = 255;
+                }
+            }
+        }
+    }
+    
+    return ( newImage );
+}
+
+/*** GImageSwapRGBA ***/
+
+void GImageSwapRGBA ( GImagePtr image )
+{
+    int width = GGetImageWidth ( image );
+    int height = GGetImageHeight ( image );
+    int depth = GGetImageDepth ( image );
+
+    if ( depth < 24 )
+        return;
+    
+    printf ( "Swapping RGBA...\n" );
+    for ( int row = 0; row < height; row++ )
+    {
+        char *data = GGetImageDataRow ( image, row );
+        for ( int col = 0; col < width; col++ )
+        {
+            if ( depth == 32 )
+            {
+                char r = data[0];
+                char g = data[1];
+                char b = data[2];
+                char a = data[3];
+
+                data[0] = a;
+                data[1] = r;
+                data[2] = g;
+                data[3] = b;
+
+                data += 4;
+            }
+            else if ( depth == 24 )
+            {
+                char r = data[0];
+                char g = data[1];
+                char b = data[2];
+                
+                data[0] = b;
+                data[1] = g;
+                data[2] = r;
+                
+                data += 3;
+            }
+        }
+    }
+}
+
+/*** GGetImageColorStatistics ********************************************************/
+
+void GGetImageColorStatistics ( GImagePtr pImage, int nColors, GColorStats pStats[4] )
+{
+    unsigned char    *pPixel = NULL;
+    float            rgba[4];
+    int                row, col, i, j;
+    
+    // initialization
+    
+    pPixel = (unsigned char *) GGetImageDataRow ( pImage, pImage->selectTop )
+           + pImage->selectLeft * pImage->depth / 8;
+    GGetPixelColor ( pImage, pPixel, rgba );
+    
+    for ( i = 0; i < nColors; i++ )
+    {
+        memset ( &pStats[i], 0, sizeof ( pStats[i] ) );
+        pStats[i].min = pStats[i].max = rgba[i];
+    }
+    
+    // Process pixels inside selected rectangle
+    
+    for ( row = pImage->selectTop; row < pImage->selectBottom; row++ )
+    {
+        pPixel = (unsigned char *) GGetImageDataRow ( pImage, row ) + pImage->selectLeft * pImage->depth / 8;
+        for ( col = pImage->selectLeft; col < pImage->selectRight; col++ )
+        {
+            GGetPixelColor ( pImage, pPixel, rgba );
+            for ( i = 0; i < nColors; i++ )
+            {
+                pStats[i].n++;
+                pStats[i].sum += rgba[i];
+                pStats[i].stdev += rgba[i] * rgba[i];
+                
+                if ( rgba[i] < pStats[i].min )
+                    pStats[i].min = rgba[i];
+                    
+                if ( rgba[i] > pStats[i].max )
+                    pStats[i].max = rgba[i];
+                    
+                pStats[i].histogram[ (int) rgba[i] ]++;
+            }
+            
+            pPixel += pImage->depth / 8;
+        }
+    }
+    
+    // Finalization
+    
+    for ( i = 0; i < nColors; i++ )
+    {
+        pStats[i].mean = (float) pStats[i].sum / pStats[i].n;
+        pStats[i].stdev = pStats[i].stdev / pStats[i].n - pStats[i].mean * pStats[i].mean;
+        pStats[i].stdev = pStats[i].stdev > 0.0 ? sqrt ( pStats[i].stdev ) : 0.0;
+        
+        unsigned long sum = 0, max = 0;
+
+        for ( j = 0; j < 256; j++ )
+        {
+            sum += pStats[i].histogram[j];
+            if ( sum < pStats[i].n / 2 )
+                pStats[i].median = j;
+        
+            if ( pStats[i].histogram[j] > max )
+            {
+                max = pStats[i].histogram[j];
+                pStats[i].mode = j;
+            }
+        }
+    }
 }
 
 /*** jpeg_std_error_jump ****************************************************/
@@ -310,6 +602,17 @@ int GWriteJPEGImageFile ( GImagePtr image, short quality, FILE *file )
     /*** And we're done! ***/
     
     return ( TRUE );
+}
+
+int GWriteJPEGImage ( GImagePtr image, short quality, const char *filepath )
+{
+    FILE *outfile = fopen ( filepath, "wb" );
+    if ( outfile == NULL )
+        return FALSE;
+    
+    int result = GWriteJPEGImageFile ( image, quality, outfile );
+    fclose ( outfile );
+    return result;
 }
 
 /*** TIFFErrorSupressor *****************************************************************/
@@ -498,6 +801,156 @@ GImagePtr GReadTIFFImageStrip ( TIFF *tiff, int stripTop, int stripHeight )
     return ( image );
 }
 
+/*** GWriteTIFFImageFile *******************************************************************/
+
+int GWriteTIFFImageFile ( GImagePtr image, const char *filename, FILE *file )
+{
+    unsigned int    width, height, depth, value, row, col;
+    unsigned char    *data, *scanline, red, green, blue, alpha;
+    unsigned short    *colormap = NULL, numcolors, color;
+    TIFF            *tiff = NULL;
+    
+    /*** Create a TIFF record in memory.  (Note that we don't actually open the file
+         here!)  Return an error code on failure. ***/
+    
+    tiff = TIFFClientOpen ( filename, "w", file,
+                           TIFFClientRead, TIFFClientWrite, TIFFClientSeek, TIFFClientClose, TIFFClientSize,
+                           TIFFClientMap, TIFFClientUnmap );
+    
+    if ( tiff == NULL )
+        return ( FALSE );
+    
+    /*** Obtain the image dimensions and depth, and set the corresponding TIFF tags. ***/
+    
+    width = GGetImageWidth ( image );
+    height = GGetImageHeight ( image );
+    depth = GGetImageDepth ( image );
+    
+    TIFFSetField ( tiff, TIFFTAG_IMAGEWIDTH, width );
+    TIFFSetField ( tiff, TIFFTAG_IMAGELENGTH, height );
+    TIFFSetField ( tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG );    /* component values for each pixel are stored contiguously */
+    TIFFSetField ( tiff, TIFFTAG_COMPRESSION, COMPRESSION_NONE );         /* no compression */
+    
+    if ( depth <= 8 )
+    {
+        /*** For an indexed-color image, set the appropriate TIFF tags to indicate
+             that we have a 1 color sample of up to the bit depth of the image. ***/
+        
+        TIFFSetField ( tiff, TIFFTAG_BITSPERSAMPLE, depth );
+        TIFFSetField ( tiff, TIFFTAG_SAMPLESPERPIXEL, 1 );
+        
+        /*** If we have a 1-bit bitmap, we don't write any color table; we just indicate
+         that value zero is white and value 1 is black.  If we have an image with at
+         least 4 or 8 bits per pixel, extract the color table from the bitmap and
+         write it to the TIFF file. ***/
+        
+        if ( depth == 1 )
+        {
+            TIFFSetField ( tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISWHITE );
+        }
+        else
+        {
+            TIFFSetField ( tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_PALETTE );
+            
+            /*** Compute the number of colors in the image's color table, and allocate
+                 an array of short integers big enough to hold R-G-B color components
+                 for each entry in the color table.  On failure, free the TIFF record
+                 and return a NULL pointer. ***/
+            
+            numcolors = 1 << depth;
+            colormap = (unsigned short *) malloc ( sizeof ( unsigned short ) * 3 * numcolors );
+            if ( colormap == NULL )
+            {
+                TIFFClose ( tiff );
+                return ( FALSE );
+            }
+            
+            /*** For each entry in the image's color table, copy the red components into
+                 the TIFF color map first, followed by the blue components, then the green.
+                 Scale them to the range 0-65535. ***/
+            
+            for ( color = 0; color < numcolors; color++ )
+            {
+                GGetImageColorTableEntry ( image, color, &red, &green, &blue );
+                
+                colormap[ color                 ] = red * 257L;
+                colormap[ color + numcolors     ] = green * 257L;
+                colormap[ color + numcolors * 2 ] = blue * 257L;
+            }
+            
+            TIFFSetField ( tiff, TIFFTAG_COLORMAP, &colormap[0], &colormap[ numcolors ], &colormap[ 2 * numcolors ] );
+        }
+        
+        /*** Now, for each row of data in the image, write the pixel values in the row
+             (which represent indices into the color table) to the TIFF file.  When done,
+             free memory for the TIFF colormap. ***/
+        
+        for ( row = 0; row < height; row++ )
+        {
+            data = (unsigned char *) GGetImageDataRow ( image, row );
+            TIFFWriteScanline ( tiff, data, row, 0 );
+        }
+        
+        if ( colormap != NULL )
+            free ( colormap );
+    }
+    else
+    {
+        /*** For direct-color images, we set the appropriate TIFF tags to indicate
+             that we have eight-bit color samples per pixel, and that they should
+             be interpreted as RGB or RGBA color values. ***/
+        
+        TIFFSetField ( tiff, TIFFTAG_BITSPERSAMPLE, 8 );
+        TIFFSetField ( tiff, TIFFTAG_SAMPLESPERPIXEL, depth == 24 ? 3 : 4 );
+        TIFFSetField ( tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB );
+        
+        /*** Allocate a buffer to hold a single scanline of TIFF RGB or RGBA image file data;
+         close the file and return an error code on failure. ***/
+        
+        size_t size = sizeof ( unsigned char ) * width * ( depth == 24 ? 3 : 4 );
+        scanline = (unsigned char *) malloc ( size );
+        if ( scanline == NULL )
+        {
+            TIFFClose ( tiff );
+            return ( FALSE );
+        }
+        
+        /*** For each row in the image, store the RGBA values in each pixel into the TIFF
+             scanline, then write the scanline to the TIFF file. ***/
+        
+        for ( row = 0; row < height; row++ )
+        {
+            memcpy ( scanline, GGetImageDataRow ( image, row ), size );
+            TIFFWriteScanline ( tiff, scanline, row, 0 );
+        }
+        
+        /*** Free memory for the TIFF scanline buffer. ***/
+        
+        free ( scanline );
+    }
+    
+    /*** Close the TIFF file and return a successful result code. ***/
+    
+    TIFFClose ( tiff );
+    return ( TRUE );
+}
+
+int GWriteTIFFImage ( GImagePtr image, const char *filepath )
+{
+    std::string filename ( filepath );
+    size_t pos = filename.find_last_of ( '/' );
+    if ( pos != std::string::npos )
+        filename = filename.substr ( pos + 1, filename.length() - pos - 1 );
+    
+    FILE *outfile = fopen ( filepath, "wb" );
+    if ( outfile == NULL )
+        return FALSE;
+
+    int result = GWriteTIFFImageFile ( image, filename.c_str(), outfile );
+    fclose ( outfile );
+    return result;
+}
+
 #define TILEWIDTH 512
 #define TILEHEIGHT 256
 #define TILEOVERLAP 20
@@ -563,7 +1016,25 @@ int main ( int argc, char *argv[] )
         }
         
         printf ( "Read TIFF image strip %d!\n", strip );
+        char stripname[256] = { 0 };
+        sprintf ( stripname, "_%03d.tif", strip );
+        std::string outpath = outdir + basename + stripname;
         
+        GImagePtr newImage = GResampleImage ( stripImage, 24 );
+        if ( newImage == NULL )
+        {
+            printf ( "Failed to resample TIFF image strip %d!\n", strip );
+            GDeleteImage ( stripImage );
+            break;
+        }
+        
+        GDeleteImage ( stripImage );
+        stripImage = newImage;
+        
+        //GImageSwapRGBA ( stripImage );
+        //if ( ! GWriteTIFFImage ( stripImage, outpath.c_str() ) )
+        //    printf ( "Failed to write strip %s...\n", outpath.c_str() );
+
         // Extract tiles from the strip, and write each tile to a JPEG file
         
         for ( int tile = 0; tile < numTilesX; tile++ )
@@ -572,34 +1043,32 @@ int main ( int argc, char *argv[] )
             int tileRight = tileLeft + TILEWIDTH;
             int tileWidth = tileRight <= width ? TILEWIDTH : width - tileLeft;
             
-            GImagePtr tileImage = GCreateSubframeImage ( stripImage, tileLeft, 0, tileWidth, stripHeight );
+            GImagePtr tileImage = GCreateSubImage ( stripImage, tileLeft, 0, tileWidth, stripHeight );
             if ( tileImage == NULL )
             {
                 printf ( "Failed to create strip %d tile %d!\n", strip, tile );
                 continue;
             }
             
-            char tilename[256] = { 0 };
-            sprintf ( tilename, "_%03d_%03d.jpg", strip, tile );
-            std::string outpath = outdir + basename + tilename;
-            
-            FILE *outfile = fopen ( outpath.c_str(), "wb" );
-            if ( outfile == NULL )
+            GColorStats stats[3];
+            GGetImageColorStatistics ( tileImage, 3, stats );
+            if ( stats[0].min > 254 && stats[1].min > 254 && stats[2].min > 254 )
             {
-                printf ( "Failed to create file %s!\n", outpath.c_str() );
+                printf ( "Discarding all-white strip %d tile %d.\n", strip, tile );
                 GDeleteImage ( tileImage );
                 continue;
             }
-
-            if ( GWriteJPEGImageFile ( tileImage, 90, outfile ) )
+            
+            char tilename[256] = { 0 };
+            sprintf ( tilename, "_%03d_%03d.jpg", strip, tile );
+            std::string outpath = outdir + basename + tilename;
+            if ( GWriteJPEGImage ( tileImage, 90, outpath.c_str() ) )
                 printf ( "Wrote tile %s...\n", outpath.c_str() );
             else
                 printf ( "Failed to write tile %s...\n", outpath.c_str() );
-        
-            fclose ( outfile );
             GDeleteImage ( tileImage );
         }
-        
+
         GDeleteImage ( stripImage );
     }
 
