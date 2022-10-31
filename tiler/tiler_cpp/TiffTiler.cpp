@@ -31,7 +31,7 @@
 // gcc -o tifftiler TiffTiler.cpp -I/usr/include  -L/usr/lib -ltiff  -ljpeg -lstdc++
 
 // To run:
-// ./tifftiler orthos/croz_2020-11-29_all_col.tif tiles
+// ./tifftiler orthos/croz_2020-11-29_all_col.tif tiles1
 
 typedef struct GImage
 {
@@ -220,6 +220,37 @@ void GSetPixelColor ( GImagePtr pImage, unsigned char *pPixel, float pRGBA[4] )
     }
 }
 
+/*** GCopyImageData ********************************************************************/
+
+void GCopyImageData ( GImagePtr pDstImage, int dstLeft, int dstTop, GImagePtr pSrcImage, int srcLeft, int srcTop, int width, int height )
+{
+    unsigned char    *pSrcPixel, *pDstPixel;
+    float            srcRGBA[4], dstRGBA[4];
+    int                row, col;
+    
+    if ( pSrcImage->depth != pDstImage->depth )
+        return;
+    
+    if ( srcTop + height > pSrcImage->height )
+        height = pSrcImage->height - srcTop;
+
+    if ( dstTop + height > pDstImage->height )
+        height = pDstImage->height - dstTop;
+
+    if ( srcLeft + width > pSrcImage->width )
+        width = pSrcImage->width - srcLeft;
+        
+    if ( dstLeft + width > pDstImage->width )
+        width = pDstImage->width - dstLeft;
+
+    for ( row = 0; row < height; row++ )
+    {
+        pSrcPixel = (unsigned char *) GGetImageDataRow ( pSrcImage, row + srcTop ) + srcLeft * pSrcImage->depth / 8;
+        pDstPixel = (unsigned char *) GGetImageDataRow ( pDstImage, row + dstTop ) + dstLeft * pDstImage->depth / 8;
+        memcpy ( pDstPixel, pSrcPixel, width * pDstImage->depth / 8 );
+    }
+}
+
 /*** GCreateSubImage **/
 
 GImagePtr GCreateSubImage ( GImagePtr image, int subLeft, int subTop, int subWidth, int subHeight )
@@ -237,7 +268,10 @@ GImagePtr GCreateSubImage ( GImagePtr image, int subLeft, int subTop, int subWid
     GImagePtr subImage = GCreateImage ( subWidth, subHeight, depth );
     if ( subImage == NULL )
         return NULL;
-    
+
+#if 1
+    GCopyImageData ( subImage, 0, 0, image, subLeft, subTop, subWidth, subHeight );
+#else
     int subRowSize = GGetImageDataRowSize ( subImage );
     for ( int subRow = 0; subRow < subHeight; subRow++ )
     {
@@ -245,7 +279,7 @@ GImagePtr GCreateSubImage ( GImagePtr image, int subLeft, int subTop, int subWid
         char *subRowPtr = GGetImageDataRow ( subImage, subRow );
         memcpy ( subRowPtr, rowPtr + subLeft * depth / 8, subRowSize );
     }
-
+#endif
     return subImage;
 }
 
@@ -753,11 +787,10 @@ TIFF *GOpenTIFFImage ( const char *filename )
 
 /*** GReadTIFFImageStrip *******************************************************************/
 
-GImagePtr GReadTIFFImageStrip ( TIFF *tiff, int stripTop, int stripHeight )
+int GReadTIFFImageStrip ( TIFF *tiff, int stripTop, int stripHeight, GImagePtr image, int imageTop )
 {
     int             width = 0, height = 0, tilewidth = 0, tileheight = 0;
     unsigned short  bitspersample = 0, samplesperpixel = 0, planarconfig = 0, photometric = 0;
-    GImagePtr       image = NULL;
 
     /*** Obtain the image's dimensions and bit-depth.  The create a new image with the
          corresponding dimensions and bit-depth.  On failure, release memory for the
@@ -772,33 +805,41 @@ GImagePtr GReadTIFFImageStrip ( TIFF *tiff, int stripTop, int stripHeight )
     TIFFGetField ( tiff, TIFFTAG_PLANARCONFIG, &planarconfig );
     TIFFGetField ( tiff, TIFFTAG_PHOTOMETRIC, &photometric );
 
+    // Ensure image is large enough to store the requested number of TIFF scanlines.
+    
+    if ( GGetImageWidth ( image ) < width || GGetImageHeight ( image ) + imageTop < stripHeight )
+    {
+        printf ( "imageHeight = %d, imageTop = %d, stripHeight = %d\n", GGetImageHeight ( image ), imageTop, stripHeight );
+        return 0;
+    }
+    
+    // Ensure image format is same as TIFF format.
+    
+    if ( GGetImageDepth ( image ) != samplesperpixel * bitspersample )
+        return 0;
+    
     /*** If we have a TIFF file which represents an RGB color image,
-         we read a horizontal strip out of the TIFF and return it as a GImage.
+         we read a horizontal strip out of the TIFF into the specified GImage.
          NOTE: THIS CODE WILL FAIL TO READ TILED TIFF FILES. ***/
     
+    int row = 0;
     if ( bitspersample <= 8 && tilewidth == 0 && tileheight == 0 && photometric == PHOTOMETRIC_RGB )
     {
-        image = GCreateImage ( width, stripHeight, bitspersample * samplesperpixel );
-        if ( image == NULL )
-        {
-            printf ( "Failed to allocate GImage!\n" );
-            TIFFClose ( tiff );
-            return ( NULL );
-        }
-                
         /*** For each row in the TIFF file, read image data into the image directly.
              We can get away with this because the data returned by the TIFF library
              is in exactly the same format the we expect for an indexed-color bitmap. ***/
         
-        for ( int row = 0; row < stripHeight; row++ )
+        for ( row = 0; row < stripHeight; row++ )
         {
-            TIFFReadScanline ( tiff, GGetImageDataRow ( image, row ), row + stripTop, 0 );
+            char *imageRow = GGetImageDataRow ( image, row + imageTop );
+            if ( TIFFReadScanline ( tiff, imageRow, row + stripTop, 0 ) < 1 )
+                break;
         }
     }
     
-    /*** Return a pointer to the image. ***/
+    /*** Return number of rows read. ***/
     
-    return ( image );
+    return ( row );
 }
 
 /*** GWriteTIFFImageFile *******************************************************************/
@@ -992,34 +1033,57 @@ int main ( int argc, char *argv[] )
     
     // Get ortho dimensions and compute number of tiles needed
     
-    int width = 0, height = 0;
+    int width = 0, height = 0, bitspersample = 0, samplesperpixel = 0;
     TIFFGetField ( tiff, TIFFTAG_IMAGEWIDTH, &width );
     TIFFGetField ( tiff, TIFFTAG_IMAGELENGTH, &height );
+    TIFFGetField ( tiff, TIFFTAG_SAMPLESPERPIXEL, &samplesperpixel );
+    TIFFGetField ( tiff, TIFFTAG_BITSPERSAMPLE, &bitspersample );
 
-    int numTilesX = ( width + TILEWIDTH - 1 ) / TILEWIDTH;
-    int numTilesY = ( height + TILEHEIGHT - 1 ) / TILEHEIGHT;
+    int tileNonOverlapWidth = TILEWIDTH - TILEOVERLAP;
+    int tileNonOverlapHeight = TILEHEIGHT - TILEOVERLAP;
+    int numTilesX = ( width + tileNonOverlapWidth - 1 ) / tileNonOverlapWidth;
+    int numTilesY = ( height + tileNonOverlapHeight - 1 ) / tileNonOverlapHeight;
     printf ( "Number of tiles x=%d, y=%d, total=%d\n", numTilesX, numTilesY, numTilesX * numTilesY );
     
     // Read horizontal strips out of the TIFF file.
 
+    GImagePtr prevStrip = NULL;
     for ( int strip = 0; strip < numTilesY; strip++ )
     {
-        int stripTop    = strip * TILEHEIGHT;
-        int stripBottom = stripTop + TILEHEIGHT;
+        int stripTop = strip > 0 ? TILEHEIGHT + tileNonOverlapHeight * ( strip - 1 ) : 0;
+        int stripBottom = strip > 0 ? stripTop + tileNonOverlapHeight : TILEHEIGHT;
         int stripHeight = stripBottom <= height ? TILEHEIGHT : height - stripTop;
         
-        GImagePtr stripImage = GReadTIFFImageStrip ( tiff, stripTop, stripHeight );
+        // Allocate image to store current strip
+        
+        GImagePtr stripImage = GCreateImage ( width, stripHeight, bitspersample * samplesperpixel );
         if ( stripImage == NULL )
+        {
+            printf ( "Failed to allocate strip %d!\n", strip );
+            break;
+        }
+        
+        // Coopy the bottom of the previous strip into the top of the current strip
+        
+        if ( prevStrip )
+            GCopyImageData ( stripImage, 0, 0, prevStrip, 0, tileNonOverlapHeight, width, TILEOVERLAP );
+        
+        // Read rows from TIFF file into bottom of current strip
+        
+        int rowsToRead = prevStrip ? stripHeight - TILEOVERLAP : stripHeight;
+        int tileTopRow = prevStrip ? TILEOVERLAP : 0;
+        if ( GReadTIFFImageStrip ( tiff, stripTop, rowsToRead, stripImage, tileTopRow ) < rowsToRead )
         {
             printf ( "Failed to read TIFF image strip %d!\n", strip );
             break;
         }
         
         printf ( "Read TIFF image strip %d!\n", strip );
+#if 0
         char stripname[256] = { 0 };
-        sprintf ( stripname, "_%03d.tif", strip );
+        sprintf ( stripname, "_%d.tif", strip );
         std::string outpath = outdir + basename + stripname;
-        
+
         GImagePtr newImage = GResampleImage ( stripImage, 24 );
         if ( newImage == NULL )
         {
@@ -1027,40 +1091,47 @@ int main ( int argc, char *argv[] )
             GDeleteImage ( stripImage );
             break;
         }
-        
         GDeleteImage ( stripImage );
         stripImage = newImage;
-        
+
         //GImageSwapRGBA ( stripImage );
         //if ( ! GWriteTIFFImage ( stripImage, outpath.c_str() ) )
         //    printf ( "Failed to write strip %s...\n", outpath.c_str() );
+
+#endif
 
         // Extract tiles from the strip, and write each tile to a JPEG file
         
         for ( int tile = 0; tile < numTilesX; tile++ )
         {
-            int tileLeft  = tile * TILEWIDTH;
+            int tileLeft  = tile * tileNonOverlapWidth;
             int tileRight = tileLeft + TILEWIDTH;
             int tileWidth = tileRight <= width ? TILEWIDTH : width - tileLeft;
+            
+            // Extract tile from strip
             
             GImagePtr tileImage = GCreateSubImage ( stripImage, tileLeft, 0, tileWidth, stripHeight );
             if ( tileImage == NULL )
             {
-                printf ( "Failed to create strip %d tile %d!\n", strip, tile );
+                printf ( "Failed to create tile %d in strip %d!\n", tile, strip );
                 continue;
             }
+            
+            // Compute tile color statistics. If RGB values are all above 254, discard tile.
             
             GColorStats stats[3];
             GGetImageColorStatistics ( tileImage, 3, stats );
             if ( stats[0].min > 254 && stats[1].min > 254 && stats[2].min > 254 )
             {
-                printf ( "Discarding all-white strip %d tile %d.\n", strip, tile );
+                printf ( "Discarding all-white tile %d in strip %d.\n", tile, strip );
                 GDeleteImage ( tileImage );
                 continue;
             }
             
+            // Save tile as JPEG file in output directory.
+            
             char tilename[256] = { 0 };
-            sprintf ( tilename, "_%03d_%03d.jpg", strip, tile );
+            sprintf ( tilename, "_%d_%d.jpg", tile, strip );
             std::string outpath = outdir + basename + tilename;
             if ( GWriteJPEGImage ( tileImage, 90, outpath.c_str() ) )
                 printf ( "Wrote tile %s...\n", outpath.c_str() );
@@ -1069,7 +1140,11 @@ int main ( int argc, char *argv[] )
             GDeleteImage ( tileImage );
         }
 
-        GDeleteImage ( stripImage );
+        // Delete the previous strip (if we have one); current strip becomes previous
+        
+        if ( prevStrip != NULL )
+            GDeleteImage ( prevStrip );
+        prevStrip = stripImage;
     }
 
     TIFFClose ( tiff );
