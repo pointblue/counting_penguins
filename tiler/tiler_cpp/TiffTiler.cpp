@@ -6,7 +6,6 @@
 //  Things still needed to do:
 //  - Write summary CSV file
 //  - Extract geo-referencing information from TIFF headers (maybe use GDAL?)
-//  - Apply overlap/buffer margin to tiles
 
 #include <stdio.h>
 #include <stdint.h>
