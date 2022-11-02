@@ -16,7 +16,7 @@ import csv
 # Full path to workspace directory contining counting_penguins repo,
 # and orthos and tiles subdirectories. Must end with a slash!
 
-workspace = '/Users/timmyd/projects/Point Blue/'
+workspace = '/Users/timmyd/Projects/PointBlue/'
 #workspace = '/home/ubuntu/Workspace/'
 
 path_to_objTiler = workspace + '/counting_penguins/tiler/'
