@@ -268,4 +268,3 @@ print(end - start)
 Try this ortho:
 croz_20191202.tif
 http://deju-penguinscience.s3-us-east-2.amazonaws.com/PenguinCounting/index.html?prefix=PenguinCounting/croz_20191202/tiles/
-
