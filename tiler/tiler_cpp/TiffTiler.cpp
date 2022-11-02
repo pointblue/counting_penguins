@@ -1,10 +1,9 @@
 //  TiffTiler.cpp
 //  Created by Tim DeBenedictis (timd@southernstars.com) on 10/25/22.
 //  This program subdivides a large ortho TIFF file - much larger than will fit
-//  into physical RAM - into many small JPEG tiles.
-//  THIS IS VERY MUCH A WORK IN PROGRESS.
+//  into physical RAM - into many small JPEG tiles. Zero-contrast tiles
+//  are discarded. A tile summary file in CSV format is written.
 //  Things still needed to do:
-//  - Write summary CSV file
 //  - Extract geo-referencing information from TIFF headers (maybe use GDAL?)
 
 #include <stdio.h>
@@ -1042,10 +1041,21 @@ int main ( int argc, char *argv[] )
     int tileNonOverlapHeight = TILEHEIGHT - TILEOVERLAP;
     int numTilesX = ( width + tileNonOverlapWidth - 1 ) / tileNonOverlapWidth;
     int numTilesY = ( height + tileNonOverlapHeight - 1 ) / tileNonOverlapHeight;
-    printf ( "Number of tiles x=%d, y=%d, total=%d\n", numTilesX, numTilesY, numTilesX * numTilesY );
+    int totalTiles = numTilesX * numTilesY;
+    printf ( "Number of tiles x=%d, y=%d, total=%d\n", numTilesX, numTilesY, totalTiles );
     
-    // Read horizontal strips out of the TIFF file.
+    // create summary CSV file
+    
+    std::string summaryPath = outdir + basename + "_tilesGeorefTable.csv";
+    FILE *summaryFile = fopen ( summaryPath.c_str(), "w" );
+    if ( summaryFile == NULL )
+        printf ( "Can't create summary CSV file %s!\n", summaryPath.c_str() );
+    else
+        fprintf ( summaryFile, "tileName,pixelX,pixelY,easting,northng,min,max,mean,stdDev\n" );
 
+    // Read horizontal strips out of the TIFF file and generate tiles from each strip.
+
+    totalTiles = 0;
     GImagePtr prevStrip = NULL;
     for ( int strip = 0; strip < numTilesY; strip++ )
     {
@@ -1101,6 +1111,9 @@ int main ( int argc, char *argv[] )
 
         // Extract tiles from the strip, and write each tile to a JPEG file
         
+        int numTilesWritten = 0;
+        int numTilesDiscarded = 0;
+        
         for ( int tile = 0; tile < numTilesX; tile++ )
         {
             int tileLeft  = tile * tileNonOverlapWidth;
@@ -1116,13 +1129,25 @@ int main ( int argc, char *argv[] )
                 continue;
             }
             
-            // Compute tile color statistics. If RGB values are all above 254, discard tile.
+            // Resample tile to grayscale, and compute statistics
             
-            GColorStats stats[3];
-            GGetImageColorStatistics ( tileImage, 3, stats );
-            if ( stats[0].min > 254 && stats[1].min > 254 && stats[2].min > 254 )
+            GImagePtr grayTile = GResampleImage ( tileImage, 8 );
+            if ( grayTile == NULL )
             {
-                printf ( "Discarding all-white tile %d in strip %d.\n", tile, strip );
+                printf ( "Can't resample tile %d in strip %d to grayscale, discarding tile!\n", tile, strip );
+                numTilesDiscarded++; // printf ( "Discarding all-white tile %d in strip %d.\n", tile, strip );
+                GDeleteImage ( tileImage );
+                continue;
+            }
+            
+            // Compute grayscale tile color statistics. If tile contrast is zero, discard tile.
+            
+            GColorStats stats;
+            GGetImageColorStatistics ( grayTile, 1, &stats );
+            GDeleteImage ( grayTile );
+            if ( stats.max == stats.min )
+            {
+                numTilesDiscarded++; // printf ( "Discarding all-white tile %d in strip %d.\n", tile, strip );
                 GDeleteImage ( tileImage );
                 continue;
             }
@@ -1132,13 +1157,29 @@ int main ( int argc, char *argv[] )
             char tilename[256] = { 0 };
             sprintf ( tilename, "_%d_%d.jpg", tile, strip );
             std::string outpath = outdir + basename + tilename;
-            if ( GWriteJPEGImage ( tileImage, 90, outpath.c_str() ) )
-                printf ( "Wrote tile %s...\n", outpath.c_str() );
-            else
+            if ( ! GWriteJPEGImage ( tileImage, 90, outpath.c_str() ) )
+            {
                 printf ( "Failed to write tile %s...\n", outpath.c_str() );
+                GDeleteImage ( tileImage );
+                continue;
+            }
+            
+            numTilesWritten++; // printf ( "Wrote tile %s...\n", outpath.c_str() );
             GDeleteImage ( tileImage );
+            
+            if ( summaryFile )
+            {
+                std::string tileName = basename + tilename;
+                fprintf ( summaryFile, "%s,%d,%d,%f,%f,%d,%d,%f,%f\n",
+                         tileName.c_str(), tileLeft, stripTop,
+                         0.0, 0.0,
+                         (int) stats.min, (int) stats.max, stats.mean, stats.stdev );
+            }
         }
 
+        totalTiles += numTilesWritten;
+        printf ( "Wrote %d tiles; discarded %d tiles.\n", numTilesWritten, numTilesDiscarded );
+        
         // Delete the previous strip (if we have one); current strip becomes previous
         
         if ( prevStrip != NULL )
@@ -1146,5 +1187,9 @@ int main ( int argc, char *argv[] )
         prevStrip = stripImage;
     }
 
+    printf ( "Finished! Grand total %d tiles written.\n", totalTiles );
+    if ( summaryFile )
+        fclose ( summaryFile );
+    
     TIFFClose ( tiff );
 }
