@@ -146,12 +146,12 @@ class IDmaker(object):
             tdf = df[(df.absX >= (abx-self.pixdistance)) & (df.absX <= (abx+self.pixdistance)) & (df.absY >= (aby-self.pixdistance)) & (df.absY <= (aby+self.pixdistance))]
             if (len(tdf.index)==1):
                 tdf = tdf.reset_index(drop=True)
-                tdf.loc[:,"distance"] = np.sqrt(((tdf.absX-abx)**2) + ((tdf.absY-aby)**2))
-                tdf = tdf[tdf["distance"] <= self.pixdistance]
                 tdf.loc[:,"newPenguinID"] = pID
                 
                 
             else:
+                tdf.loc[:,"distance"] = np.sqrt(((tdf.absX-abx)**2) + ((tdf.absY-aby)**2))
+                tdf = tdf[tdf["distance"] <= self.pixdistance]
                 tdf = tdf[~tdf.penguinID.isin(res.penguinID)]
                 if (len(tdf.index) > 0):
                     tdf.loc[:,"newPenguinID"] = pID
@@ -181,3 +181,10 @@ predtable = idm.makeId(res=res)
 end = time.time()
 print(end - start)
 ###################
+
+## now the plan is to generate a list of tables, one per modelClass
+# Then:
+# Take the first table and loop through unique IDs
+#	Retrieve highest prob value
+#	Take the next table and find dupes, unique IDs, and highest probs
+#	Add to tally: all unique IDs from all tables, plus probs, and an overall uniqueID, class, and prob for the detection with highest probs among all models
