@@ -1,37 +1,43 @@
 # write validation data to s3 bucket
 
-library(tidyverse)
-library(aws.s3)
+write_val_dat <-
+  function(sheet_url,
+           sheet_name,
+           bucket = "s3://deju-penguinscience/",
+           prefix,
+           region = "us-east-2"){
+
+require(tidyverse)
+require(aws.s3)
 
 # read in sheet with validation data
-# 2019-12-02 validation data
 sheet_url <-
-  "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing"
+  sheet_url
 
 labs <-
   googlesheets4::read_sheet(ss = sheet_url,
                             sheet = "label_data")
 
 tiles <- 
-  googlesheets4::read_sheet(ss = "https://docs.google.com/spreadsheets/d/1nc2nd3yIPIvIKgASB-RwPtFwOQ1rUgVEdt2CpLi7LZE/edit?usp=sharing",
+  googlesheets4::read_sheet(ss = sheet_url,
                             sheet = "tile_list")
 
 
 # aws set up
-Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
+Sys.setenv("AWS_DEFAULT_REGION" = region)
 
 bucket <-
-  "s3://deju-penguinscience/"
+  bucket
 
 #specify the tiles object (needs updating when starting new tileset)
 prefix <-
-  "PenguinCounting/croz_20191202/validation_data/"
+  prefix
 
 s3write_using(
   labs,
   FUN = write_delim,
   delim = ",",
-  object = paste0(prefix, "croz_20191202_validation_labels.csv"),
+  object = paste0(prefix, sheet_name, "labels.csv"),
   bucket = bucket
 )
 
@@ -39,7 +45,15 @@ s3write_using(
   tiles,
   FUN = write_delim,
   delim = ",",
-  object = paste0(prefix, "croz_20191202_validation_tile_summary.csv"),
+  object = paste0(prefix, sheet_name,"tile_summary.csv"),
   bucket = bucket
 )
+}
 
+# Run function to write validation data
+write_val_dat(
+  sheet_url = "https://docs.google.com/spreadsheets/d/1X5wiX5Tw3jpLWJC9sh05_uhKSAQMDJ6pWAgL9y0j4Gk/edit?usp=sharing",
+  # sheet name will have "lables.csv" and "tile_summary.csv" pasted on the end
+  sheet_name = "croz_20201129_validation_",
+  prefix = "PenguinCounting/croz_20201129/validation_data/"
+)
