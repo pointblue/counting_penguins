@@ -4,7 +4,7 @@
 //  into physical RAM - into many small JPEG tiles. Zero-contrast tiles
 //  are discarded. A tile summary file in CSV format is written.
 //  Things still needed to do:
-//  - Extract geo-referencing information from TIFF headers (maybe use GDAL?)
+//  - See TODO in code below.
 
 #include <stdio.h>
 #include <stdint.h>
@@ -12,6 +12,7 @@
 #include <string.h>
 #include <tiffio.h>
 #include <jpeglib.h>
+#include <gdal_priv.h>
 #include <math.h>
 #include <setjmp.h>
 
@@ -21,12 +22,12 @@
 #include "GImage.h"
 
 // To compile this program on MacOS:
-// brew install libtiff
-// gcc -o tifftiler TiffTiler.cpp -I/opt/homebrew/include -L/opt/homebrew/lib -ltiff  -ljpeg -lstdc++
+// brew install libtiff gdal
+// gcc -std=c++11 -o tifftiler TiffTiler.cpp -I/opt/homebrew/include -L/opt/homebrew/lib -ltiff  -ljpeg -lgdal -lstdc++
 
 // To compile this program on Ubuntu Linux:
-// sudo apt install libtiff
-// gcc -o tifftiler TiffTiler.cpp -I/usr/include  -L/usr/lib -ltiff  -ljpeg -lstdc++
+// sudo apt install libtiff gdal
+// gcc -std=c++11 -o tifftiler TiffTiler.cpp -I/usr/include  -L/usr/lib -ltiff  -ljpeg -lstdc++
 
 // To run:
 // ./tifftiler orthos/croz_2020-11-29_all_col.tif tiles1
@@ -1015,6 +1016,25 @@ int main ( int argc, char *argv[] )
         exit ( -1 );
     }
     
+    // Use GDAL to extract the geotransform from the TIFF file.
+    
+    double geotransform[6] = { 0 };
+    GDALAllRegister();
+    GDALDataset *fin = (GDALDataset*) GDALOpen ( argv[1], GA_ReadOnly );
+    if ( fin == NULL )
+        printf ( "Could not open %s with GDAL!\n", argv[1] );
+    else if ( fin->GetGeoTransform ( geotransform ) != CE_None )
+    {
+        printf ( "Could not get geotransform from %s!\n", argv[1] );
+        GDALClose ( fin );
+    }
+    else
+    {
+        printf ( "GDAL Geotransform:\n%f, %e, %e\n%f, %e, %e\n",
+                geotransform[0], geotransform[1], geotransform[2],
+                geotransform[3], geotransform[4], geotransform[5] );
+    }
+    
     // Get base filename of input ortho TIFF file
     
     printf ( "Opened input TIFF image file %s.\n", argv[1] );
@@ -1167,12 +1187,18 @@ int main ( int argc, char *argv[] )
             numTilesWritten++; // printf ( "Wrote tile %s...\n", outpath.c_str() );
             GDeleteImage ( tileImage );
             
+            // If we have a summary file, write tile summary, statistics, and geo-reference to the file.
+            // TODO: adding TILEOVERLAP is a hack to make our output match Leo's. Who has the bug? Fix!
+            
             if ( summaryFile )
             {
+                double x = tileLeft, y = stripTop - TILEOVERLAP;
+                double lon = geotransform[0] + x * geotransform[1] + y * geotransform[2];
+                double lat = geotransform[3] + x * geotransform[4] + y * geotransform[5];
                 std::string tileName = basename + tilename;
-                fprintf ( summaryFile, "%s,%d,%d,%f,%f,%d,%d,%f,%f\n",
-                         tileName.c_str(), tileLeft, stripTop,
-                         0.0, 0.0,
+                fprintf ( summaryFile, "%s,%d,%d,%.12f,%.12f,%d,%d,%f,%f\n",
+                         tileName.c_str(), (int) x, (int) y,
+                         lon, lat,
                          (int) stats.min, (int) stats.max, stats.mean, stats.stdev );
             }
         }
