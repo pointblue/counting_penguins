@@ -27,6 +27,19 @@ tile_picker <-
     require(googlesheets4)
     require(aws.s3)
     
+    # check if provided path for images has trailing slash
+    if(substr(wd, nchar(wd), nchar(wd)) == "\\" |
+       substr(wd, nchar(wd), nchar(wd)) == "/") {
+      setwd(wd)
+    }else{
+      message(
+        "Warning: working directory path missing trailing slash, please add and re-save to environment before continuing"
+      )
+    }
+    stopifnot(substr(wd, nchar(wd), nchar(wd)) == "\\" |
+                substr(wd, nchar(wd), nchar(wd)) == "/")
+    
+    
     # set temp working dir
     setwd(wd)
     
@@ -103,12 +116,12 @@ tile_picker <-
           file = paste0(wd, "label_key.txt"),
           overwrite = TRUE
         )
-       } 
-        # update downloaded field in picklist
-        pl_update <- rows_update(pl, set, by = "tileName")
-        
-        # update google sheet
-        sheet_write(pl_update, ss = id, sheet = "tile_list")
+      } 
+      # update downloaded field in picklist
+      pl_update <- rows_update(pl, set, by = "tileName")
+      
+      # update google sheet
+      sheet_write(pl_update, ss = id, sheet = "tile_list")
       
     } else {
       message("Download aborted, please upload labels to clear working directory")
@@ -117,17 +130,17 @@ tile_picker <-
     
     
   }
-    
-    # Function2:
-    # run when done with tagging session
-    # read in tables just created by tagging tiles
-    # add column with tile name and who tagged
-    # read in existing table in s3
-    # combine tables
-    # write updated table to google
-    # update picklist with tagged
-    # summarize how many tiles remain
-    
+
+# Function2:
+# run when done with tagging session
+# read in tables just created by tagging tiles
+# add column with tile name and who tagged
+# read in existing table in s3
+# combine tables
+# write updated table to google
+# update picklist with tagged
+# summarize how many tiles remain
+
 update_labs <-
   function(bucket,
            prefix,
@@ -179,8 +192,17 @@ update_labs <-
       left_join(labs, by = "lab_key") %>%
       select (tileName, label, x, y, width, height)
     
-    # append new data to existing label data sheet
-    sheet_append(ss = id, new_labs, sheet = "label_data")
+    
+    # in case the same set of labels gets uploaded again, read in label sheet
+    # append new data 
+    # and remove dups and overwrite
+    read_sheet(ss = id,
+               sheet = "label_data",
+               col_types = "ccnnnn") %>%
+      # append new data to existing label data sheet
+      bind_rows(new_labs) %>%
+      distinct() %>%
+      sheet_write(ss = id, sheet = "label_data")
     
     # update tagged column in pick list
     message("Updating tile list with tiles tagged")
@@ -201,7 +223,8 @@ update_labs <-
     
     # update picklist
     pl_update <-
-      rows_update(pl, tagged, copy = TRUE, by = "tileName")
+      rows_update(pl, tagged, copy = TRUE, by = "tileName") %>%
+      distinct()
     
     # overwite tile list with updated data
     sheet_write(pl_update, ss = id, sheet = "tile_list")
@@ -210,6 +233,10 @@ update_labs <-
     tot_tag <-
       filter(pl_update, tagged == 1) %>%
       nrow()
+    # summarize how many of each class tagged
+    labs_by_type <-
+      filter(pl_update,tagged ==1) %>%
+      summarise(across(ADPE_a:no_ADPE,~sum(.,na.rm = TRUE)))
     
     # print summary of how many updated and how many tiles remain
     message(
@@ -225,6 +252,10 @@ update_labs <-
         "complete"
       )
     )
+    #print summary of how many in each class labeles
+    message(
+      "Total labels by class:")
+    print(as.data.frame(labs_by_type))
     
     # print summary of how many tiles processed by initials
     pl_inits <- 
@@ -232,8 +263,21 @@ update_labs <-
       group_by(initials) %>% 
       tally()
     
-    message("Tally by initials:")
+    message("Tile tally by initials:")
     print(as.data.frame(pl_inits))
+    
+    
+    #make a chart
+    fig1<-
+      pl_inits %>%
+      filter(!is.na(initials)) %>%
+      ggplot(aes(x=initials, y=n, fill=initials)) +
+      geom_bar(stat="identity", color="black") +
+      scale_fill_brewer(palette="Set2") +
+      ggtitle(paste0(prefix,": n counted by initials")) +
+      theme_minimal()
+    
+    print(fig1)
     
     # prompt to clear working directory
     var <-
