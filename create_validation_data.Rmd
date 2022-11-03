@@ -26,7 +26,7 @@ source("scripts/validation_functions.R")
 # set your temporary working directory
 # NOTE: this directory will get cleared so best to make a fresh one on your desktop for this purpose. Make sure it has the trailing slash.
 wd <-
-  "set_to_your_wd"
+  r"(C:\Users\aschmidt\Desktop\test_images\tile_tagging\)"
 
 ```
 ## set up some parameters
@@ -92,7 +92,8 @@ tile_picker(
  bucket = bucket,
  prefix = prefix,
  file_id = file_url,
- wd = wd)
+ wd = wd,
+ initials = "AS")
 
 # now you can upload the images to makesense.ai to tag
 # once done with tagging, make sure to export annotations as a zip file in YOLO format and continue to next step

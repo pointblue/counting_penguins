@@ -29,8 +29,8 @@ tile_picker <-
     
     # check if provided path for images has trailing slash
     if(substr(wd, nchar(wd), nchar(wd)) == "\\" |
-        substr(wd, nchar(wd), nchar(wd)) == "/") {
-    setwd(wd)
+       substr(wd, nchar(wd), nchar(wd)) == "/") {
+      setwd(wd)
     }else{
       message(
         "Warning: working directory path missing trailing slash, please add and re-save to environment before continuing"
@@ -116,12 +116,12 @@ tile_picker <-
           file = paste0(wd, "label_key.txt"),
           overwrite = TRUE
         )
-       } 
-        # update downloaded field in picklist
-        pl_update <- rows_update(pl, set, by = "tileName")
-        
-        # update google sheet
-        sheet_write(pl_update, ss = id, sheet = "tile_list")
+      } 
+      # update downloaded field in picklist
+      pl_update <- rows_update(pl, set, by = "tileName")
+      
+      # update google sheet
+      sheet_write(pl_update, ss = id, sheet = "tile_list")
       
     } else {
       message("Download aborted, please upload labels to clear working directory")
@@ -130,17 +130,17 @@ tile_picker <-
     
     
   }
-    
-    # Function2:
-    # run when done with tagging session
-    # read in tables just created by tagging tiles
-    # add column with tile name and who tagged
-    # read in existing table in s3
-    # combine tables
-    # write updated table to google
-    # update picklist with tagged
-    # summarize how many tiles remain
-    
+
+# Function2:
+# run when done with tagging session
+# read in tables just created by tagging tiles
+# add column with tile name and who tagged
+# read in existing table in s3
+# combine tables
+# write updated table to google
+# update picklist with tagged
+# summarize how many tiles remain
+
 update_labs <-
   function(bucket,
            prefix,
@@ -191,7 +191,7 @@ update_labs <-
       mutate(tileName = str_extract(tileName, "(.+)(?=.txt)")) %>%
       left_join(labs, by = "lab_key") %>%
       select (tileName, label, x, y, width, height)
-
+    
     
     # in case the same set of labels gets uploaded again, read in label sheet
     # append new data 
@@ -223,7 +223,8 @@ update_labs <-
     
     # update picklist
     pl_update <-
-      rows_update(pl, tagged, copy = TRUE, by = "tileName")
+      rows_update(pl, tagged, copy = TRUE, by = "tileName") %>%
+      distinct()
     
     # overwite tile list with updated data
     sheet_write(pl_update, ss = id, sheet = "tile_list")
@@ -232,6 +233,10 @@ update_labs <-
     tot_tag <-
       filter(pl_update, tagged == 1) %>%
       nrow()
+    # summarize how many of each class tagged
+    labs_by_type <-
+      filter(pl_update,tagged ==1) %>%
+      summarise(across(ADPE_a:no_ADPE,~sum(.,na.rm = TRUE)))
     
     # print summary of how many updated and how many tiles remain
     message(
@@ -247,6 +252,10 @@ update_labs <-
         "complete"
       )
     )
+    #print summary of how many in each class labeles
+    message(
+      "Total labels by class:")
+    print(as.data.frame(labs_by_type))
     
     # print summary of how many tiles processed by initials
     pl_inits <- 
@@ -254,8 +263,9 @@ update_labs <-
       group_by(initials) %>% 
       tally()
     
-    message("Tally by initials:")
+    message("Tile tally by initials:")
     print(as.data.frame(pl_inits))
+    
     
     #make a chart
     fig1<-
