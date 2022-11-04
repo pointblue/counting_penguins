@@ -26,8 +26,8 @@
 // gcc -std=c++11 -o tifftiler TiffTiler.cpp -I/opt/homebrew/include -L/opt/homebrew/lib -ltiff  -ljpeg -lgdal -lstdc++
 
 // To compile this program on Ubuntu Linux:
-// sudo apt install libtiff gdal
-// gcc -std=c++11 -o tifftiler TiffTiler.cpp -I/usr/include  -L/usr/lib -ltiff  -ljpeg -lstdc++
+// sudo apt install libtiff-dev libgdal-dev
+// gcc -std=c++11 -o tifftiler TiffTiler.cpp -I/usr/include/gdal -L/usr/lib -ltiff -ljpeg  -lgdal -lm -lstdc++
 
 // To run:
 // ./tifftiler orthos/croz_2020-11-29_all_col.tif tiles1
@@ -779,7 +779,7 @@ TIFF *GOpenTIFFImage ( const char *filename )
     printf ( "TIFF planar config: %d\n", planarconfig );
     printf ( "TIFF photometric: %d\n", photometric );
     printf ( "TIFF compression: %d\n", compression );
-    printf ( "TIFF scanline size: %lld\n", TIFFScanlineSize ( tiff ) );
+    printf ( "TIFF scanline size: %ld\n", (long) TIFFScanlineSize ( tiff ) );
     
     return tiff;
 }
