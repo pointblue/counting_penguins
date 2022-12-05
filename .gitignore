@@ -3,6 +3,6 @@
 .RData
 .Ruserdata
 .html
+.DS_Store
 *yolov5/.*
 __pycache__
-

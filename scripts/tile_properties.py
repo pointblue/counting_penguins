@@ -1,6 +1,7 @@
 '''
 Pulls brightness, contrast, perhaps other data from an S3 source
 Grant Ballard 9/11/2022 (gballard@pointblue.org)
+Tim DeBenedictis 10/21/2022 (timd@southernstars.com)
 Based on info from:
 https://stackoverflow.com/questions/3490727/what-are-some-methods-to-analyze-image-brightness-using-pythonfrom PIL import Image
 https://en.wikipedia.org/wiki/Contrast_(vision)
@@ -15,6 +16,7 @@ import math #for sqrt
 import csv #for writing the output
 import boto3 #AWS SDK for Python
 import re #regular expressions for Python
+import cv2 #OpenCV
 
 '''specifics about where your tiles are (assumes S3)'''
 my_bucket_name = "deju-penguinscience"
@@ -46,6 +48,18 @@ def contrast2( im_file ):
    im = Image.open(im_file).convert('L')
    return round(np.std(im), 2)
 
+#Function to return focus/sharpness measure (f)
+# see https://sites.google.com/view/cvia/focus-measure
+# and https://www.mathworks.com/matlabcentral/fileexchange/27314-focus-measure
+# and https://www.researchgate.net/profile/Said-Pertuz/publication/234073157_Analysis_of_focus_measure_operators_in_shape-from-focus/links/5cfc076b4585157d159e0289/Analysis-of-focus-measure-operators-in-shape-from-focus.pdf
+# and https://stackoverflow.com/questions/7765810/is-there-a-way-to-detect-if-an-image-is-blurry/7767755#7767755
+
+def normalizedLaplacianSigma ( img ):
+    lap = cv2.Laplacian ( img, cv2.CV_64F )
+    mu, sigma = cv2.meanStdDev ( lap )
+    f = sigma[0] / mu[0]
+    return math.log10 ( abs ( float ( f ) ) )
+
 '''function for listing all the file names in an S3 object'''
 
 def keys(bucket_name, prefix='/', delimiter='/', start_after=''):
@@ -58,7 +72,7 @@ def keys(bucket_name, prefix='/', delimiter='/', start_after=''):
 #Main Program below:
 
 #create csv to store image data
-header = ['tile', 'brightness', 'contrast_Michelson', 'contrast_RMS']
+header = ['tile', 'brightness', 'contrast_Michelson', 'contrast_RMS', 'min', 'max', 'mean', 'stdev', 'sharpness']
 
 with open('../tile_properties.csv', 'w', encoding='UTF8', newline='') as f:
     writer = csv.writer(f)
@@ -74,6 +88,15 @@ with open('../tile_properties.csv', 'w', encoding='UTF8', newline='') as f:
         if (images.endswith(".jpg")):
             image_name = re.search(r'(?<=tiles\/)(.+)(?=.jpg)', images)
             image_name = image_name.group()
-            data = [image_name, brightness3(dl_file), contrast(dl_file), contrast2(dl_file)]
+            img = cv2.imread ( dl_file, cv2.IMREAD_GRAYSCALE )
+            if img is None:
+                f = 0
+                min, max, min_loc, max_loc = 0
+                mean, std = 0
+            else:
+                f = normalizedLaplacianSigma ( img )
+                min, max, min_loc, max_loc = cv2.minMaxLoc ( img )
+                mean, std = cv2.meanStdDev ( img )
+            data = [image_name, brightness3(dl_file), contrast(dl_file), contrast2(dl_file), min, max, mean[0][0], std[0][0], f]
             writer.writerow(data)
             print(image_name) #if you want to watch progress - but will slow things down probably
