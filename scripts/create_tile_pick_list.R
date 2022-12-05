@@ -1,0 +1,118 @@
+# Random tile picker for selecting tiles to create validation data for penguin counting
+# First draft A. Schmidt 8/17/2022
+# Last edit: 10/10/2022 (GB)
+
+# Packages ----------------------------------------------------------------
+
+library(tidyverse)
+library(aws.s3)
+library(googledrive) #needed for drive_auth
+library(googlesheets4) #for creating the sheet that tracks pick list
+library(data.table) #for rbindlist
+
+# create list to pick from ------------------------------------------------
+Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
+
+bucket <-
+  "s3://deju-penguinscience/"
+
+#specify the tiles object (needs updating when starting new tileset)
+prefix <-
+  "PenguinCounting/croz_20201129/tiles/"
+
+# these commands are for google drive access
+# the first time you run this you will need to authorize R to access google drive
+drive_auth()
+gs4_auth(token = drive_token())
+
+# set desired name of picklist (needs updating when starting new tileset)
+pl_name <-
+  "croz_20201129_validation_data"
+
+#get the file list from the S3 bucket/object
+files <-
+  rbindlist(get_bucket(bucket = bucket,
+                prefix = prefix,
+                max = Inf))
+#note that without the rbindlist you have an object of type S3 bucket which doesn't serve for tasks below
+
+# filter to remove tiles with low probability of penguins
+files_filt <-
+  files %>%
+  #reads in size as character
+  mutate(Size = as.numeric(Size)) %>%
+  # filter to size of tile likely to have penguins
+  # from scanning 200 files, looks like it would be pretty safe to select tiles >60kb
+  filter(Size > 60000) %>%
+  # parse Key to get tile name
+  # mutate(tileName = str_replace(Key, pattern = prefix, replacement = "")) %>%
+  # remove file extension
+  mutate(tileName = str_extract(Key, "(?<=tiles/)(.+)(?=\\.jpg)")) %>%
+  # mutate(tileName = str_extract(, "(.+)(?=\\.)")) %>%
+  # select desired columns
+  select(tileName, size = Size)
+
+# random sampler
+set.seed(69)
+
+# tile pick list
+pick_list <-
+  filter(files_filt,!is.na(tileName)) %>%
+  slice_sample(n = 1000) %>%
+  select(tileName)
+
+# create table with tile name and x y coordinates
+pick_list_df <-
+  pick_list %>%
+  mutate(
+    # add column for whether tile has been processed and by whom
+    downloaded = 0,
+    tagged = 0,
+    initials = "",
+    datetime_down = "",
+    # add columns to track how many labels of each category on each tile
+    ADPE_a = "",
+    ADPE_a_stand = "",
+    ADPE_j = "",
+    no_ADPE = ""
+  )
+
+# write picklist to google sheet
+# check if sheet exists
+id <- drive_get(pl_name)$id
+if(length(id) == 0){
+gs4_create(pl_name, sheets = pick_list_df)
+id <- drive_get(pl_name)$id
+# rename sheet
+sheet_rename(id,
+             sheet = "pick_list_df",
+             new_name = "tile_list")
+} else {
+  sheet_write(pick_list_df,
+              ss = id,
+              sheet = "tile_list"
+  )
+}
+
+label_data <-
+  data.frame(matrix(nrow = 0, ncol = 6))
+names(label_data) <-
+  c("tileName", "label", "x", "y", "width", "height")
+
+sheet_write(label_data, ss = id, sheet = "label_data")
+
+# create table with labels for YOLO
+# these need to match the labels in the model (except for no,_penguin which is not in the model)
+yolo_labs = c("ADPE_a", "ADPE_a_stand", "ADPE_j", "no_ADPE")
+
+labs <-
+  data.frame(yolo_labs)
+
+s3write_using(
+  labs,
+  FUN = write_delim,
+  col_names = FALSE,
+  delim = ",",
+  object = paste0(prefix, "label_key.txt"),
+  bucket = bucket
+)
