@@ -1,5 +1,6 @@
 #Plots labels on tiles for checking accuracy
 #requires yolo-formatted bounding boxes with one txt file per tile (in a dir called "yolo_files")
+#(run parse_json_labels_make_yolo.py to get those)
 #and image directory with one URL per tile, with .txt and .jpg file names matching -
 #these are downloaded to local directory called "img_files" (could skip saving them locally)
 #update lines 68-71 to reflect your working setup
@@ -10,6 +11,7 @@ import matplotlib.image as mpimg
 import matplotlib.colors as mcolors
 import urllib.request
 import os
+import random
 
 def visualize_bbox(img_file, yolo_ann_file, label_dict, figure_size=(6, 8)):
     """
@@ -66,26 +68,33 @@ def main():
     Plots bounding boxes
     """
     #user-specified stuff here:
-    labels = {0: "your_label", 1: "your_next_label", 2: "another_label"}
-    yolo_dir = "directory where you store yolo-formatted labels"
-    img_url_dir = "URL to tiles that have matching yolo labels"
-    img_file_dir = "local directory to put tiles (probably doesn't need to store them but...)"
+    #labels = {0: "your_label", 1: "your_next_label", 2: "another_label"}
+    #yolo_dir = "directory where you store yolo-formatted labels"
+    #img_url_dir = "URL to tiles that have matching yolo labels"
+    #img_file_dir = "local directory to put tiles (probably doesn't need to store them but...)"
 
     #example:
-    #labels = {0: "CAGU_nest", 1: "CAGU_sit", 2: "CAGU_stand", 3: "no_CAGU"}
-    #yolo_dir = "C:/gballard/S031/analyses/counting_penguins/yolo_files/"
-    #img_url_dir = "https://mono-lake-gulls.s3.us-west-2.amazonaws.com/orthomosaics/mono_20220601/label_sample/"
-    #img_file_dir = "C:/gballard/S031/analyses/counting_penguins/img_files/"
+    labels = {0: "ADPE_a", 1: "ADPE_a_stand", 2: "no_ADPE"}
+    yolo_dir = "C:/gballard/S031/analyses/counting_penguins/yolo_files/"
+    img_url_dir = "https://deju-penguinscience.s3.us-east-2.amazonaws.com/PenguinCounting/croz_20211127/tiles/"
+    img_file_dir = "C:/gballard/S031/analyses/counting_penguins/img_files/"
 
-    for fntxt in os.listdir(yolo_dir):
+    n = 0
+    while n < 1:
+        #to pick n random tiles from the list:
+        #fntxt = random.choice(os.listdir(yolo_dir))
+        #to pick a specific file (needs to be foud in yolo_dir):
+        fntxt = "croz_20211127_328_693.txt"
         fn = fntxt.strip(".txt")
         print(fn)
         fnjpg = fn+".jpg"
         img_url = img_url_dir+fnjpg
+        print(img_url)
         img_filename = img_file_dir+fnjpg
         urllib.request.urlretrieve(img_url, img_filename)
         ann_file = yolo_dir + fntxt
         visualize_bbox(img_filename, ann_file, labels, figure_size=(12, 8))
+        n += 1
 
 if __name__ == "__main__":
     main()

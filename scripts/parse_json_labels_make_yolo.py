@@ -1,4 +1,5 @@
 #parses a json file from aws Ground Truth and creates a csv on your local computer
+#one csv per label
 
 from io import StringIO
 import json
@@ -20,7 +21,8 @@ def parse_gt_output(fin):
         annot_list = []
         for line in fin.readlines():
             record = json.loads(line)
-            job_name = "mono-20220601"
+            #job_name = "croz-20211127-2"
+            job_name = "adpe-label-test3"
             if job_name in record.keys():  # is it necessary?
                 print("record: ", record)
                 image_file_path = record["source-ref"]
@@ -150,8 +152,9 @@ def get_cats(json_file):
 
     return labels
 
-
-fn=open("C:/gballard/S031/analyses/counting_penguins/scripts/output.manifest")
+#note that the r script "get_manifest.r" will grab the output.manifest for you
+#or you can download it from S3. Could re-write to get it direct from S3 here instead?
+fn=open("C:/gballard/S031/analyses/counting_penguins/data/labels/croz_20211127/output.manifest_1")
 #print(fn)
 #print(fn.readline)
 parse_gt_output(fn)
