@@ -50,9 +50,9 @@ public:
     double east, north;            // geographical longitude and latitude corresonding to (left,top)
     int min, max;                  // minimum and maximum grayscale value
     float mean, stdev;             // mean and standard deviatio of grayscale values
-    vector<Penguin> predictions;   // vector of penguins predicted (found by AI) in tile
-    vector<Penguin> validations;   // vector of penguins validated (found by human inspector) in tile. If empty, humans have not inspected this tile.
-                                   // A single penguin of class kNone means human inspectors found no penguins in this tile.
+    vector<Penguin> predictions;   // vector of penguins predicted (found by YOLO) in tile. May be empty!
+    vector<Penguin> validations;   // vector of penguins validated (found by human inspector) in tile. May be empty!
+    bool validated;                // if true, tile has been validated (inspected by a human).
     
     Tile ( void );                  // default constructor
     Tile ( int width, int height ); // constructor with dimensions
@@ -82,7 +82,9 @@ public:
     bool readMetadata ( const string &path );
     int readPredictions ( const string &path, Penguin::Class clasOver = Penguin::kNone );
     int readValidations ( const string &path );
-    int countPenguins ( Penguin::Class clas, bool predictions );
+    int countPenguins ( Penguin::Class clas, bool predictions, bool validatedTilesOnly = false );
+    int countValidatedTiles ( void );
+    int countEmptyTiles ( bool predictions );
     int getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min, Penguin &max, Penguin &mean, Penguin &stdev );
 };
 

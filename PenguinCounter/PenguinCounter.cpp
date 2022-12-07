@@ -45,6 +45,7 @@ Tile::Tile ( void )
     east = north = INFINITY;
     min = max = -1;
     mean = stdev = INFINITY;
+    validated = false;
 }
 
 // Tile constructor with dimensions
@@ -316,9 +317,10 @@ int Ortho::readValidations ( const string &path )
         if ( tile == nullptr )
             continue;
         
+        tile->validated = true;
         Penguin p;
 
-        // Get class label
+        // Get class label.
         
         if ( fields[1].compare ( "no_ADPE" ) == 0 )
             p.clas = Penguin::kNone;
@@ -356,8 +358,12 @@ int Ortho::readValidations ( const string &path )
             p.sizey = strtofloat ( fields[5] );
         }
         
+        // Discard "no_ADPE" labels.
+        
         tile->setPenguinBounds ( p );
-        tile->validations.push_back ( p );
+        if ( p.clas != Penguin::kNone )
+            tile->validations.push_back ( p );
+
         numValidations++;
     }
     
@@ -367,8 +373,9 @@ int Ortho::readValidations ( const string &path )
 
 // Counts total number of penguins (predictions or validations) of a particular class (class)
 // for all tiles in this ortho. If clas is Penguin::kAny, counts all penguins of any class in the ortho.
+// If validatedTilesOnly is true, only counts penguins in tiles with validations; implied if predictions is false.
 
-int Ortho::countPenguins ( Penguin::Class clas, bool predictions )
+int Ortho::countPenguins ( Penguin::Class clas, bool predictions, bool validatedTilesOnly )
 {
     int total = 0;
     
@@ -379,11 +386,59 @@ int Ortho::countPenguins ( Penguin::Class clas, bool predictions )
             Tile *tile = tiles[row][col];
             if ( tile != nullptr )
             {
+                if ( validatedTilesOnly && tile->validations.size() == 0 )
+                    continue;
+                
                 vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
                 for ( Penguin &p : penguins )
                     if ( p.clas == clas || clas == Penguin::kAny )
                         total++;
             }
+        }
+    }
+
+    return total;
+}
+
+// Counts total number of tiles in this ortho that have been validated
+// by a numan inspector.
+
+int Ortho::countValidatedTiles ( void )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr && tile->validated )
+                total++;
+        }
+    }
+
+    return total;
+}
+
+// Counts total number of tiles in this ortho that contain
+// no predicted (or validated) penguins.
+
+int Ortho::countEmptyTiles ( bool predictions )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr )
+                continue;
+            
+            if ( predictions && tile->predictions.size() == 0 )
+                total++;
+            else if ( tile->validated && tile->validations.size() == 0 )
+                total++;
         }
     }
 
