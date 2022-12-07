@@ -31,12 +31,31 @@ Tile::~Tile ( void )
     
 }
 
+// Parses tile row and column in ortho from name.
+// If successful, returns true and (col,row) receive zero-based tile position.
+// On failure, returns false and (col,row) are set to -1.
+
+bool Tile::getColRowFromName ( const string &name, int &col, int &row )
+{
+    col = row = -1;
+    size_t pos = name.find_last_of ( '_' );
+    if ( pos != string::npos )
+        pos = name.find_last_of ( '_', pos - 1 );
+    if ( pos != string::npos )
+    {
+        string col_row = name.substr ( pos + 1, string::npos );
+        if ( sscanf ( col_row.c_str(), "%d_%d", &col, &row ) == 2 )
+            return true;
+    }
+    
+    return false;
+}
+
 // Reads predictions in YOLO format (or a variant thereof) from a text file at (path).
-// If the classification override (clasOver) is non-negative, the prediction class
-// will be overridden with it.
+// The classification override (clasOver) will be used if not Penguin::kNone.
 // Returns number of predictions read from file, or zero if file can't be read.
 
-int Tile::readPredictions ( const string &path, int clasOver )
+int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
 {
     FILE *file = fopen ( path.c_str(), "r" );
     if ( file == nullptr )
@@ -50,9 +69,9 @@ int Tile::readPredictions ( const string &path, int clasOver )
         
         if ( sscanf ( line.c_str(), "%d %f %f %f %f %f", &p.clas, &p.cenx, &p.ceny, &p.width, &p.height, &p.prob ) == 6 )
         {
-            if ( clasOver > -1 )
-                p.clas = clasOver;
-            penguins.push_back ( p );
+            if ( clasOverride != Penguin::kNone )
+                p.clas = clasOverride;
+            predictions.push_back ( p );
             numPredictions++;
         }
     }
@@ -146,7 +165,7 @@ int Ortho::readTileIndex ( const string &path )
         vector<string> fields = split_csv ( line );
         if ( fields.size() < 5 )
             continue;
-
+        
         Tile *tile = new Tile ( tileWidth, tileHeight );
         if ( tile == nullptr )
             continue;
@@ -154,14 +173,14 @@ int Ortho::readTileIndex ( const string &path )
         // Get tile name.
         
         tile->name = fields[0];
-
+        
         // Get top left corner pixel within ortho and corresponding geographic coordinates.
         
         tile->left = strtoint ( fields[1] );
         tile->top = strtoint ( fields[2] );
         tile->east = strtofloat64( fields[3] );
         tile->north = strtofloat64 ( fields[4] );
-
+        
         // If present, get image statistical characteristics
         
         if ( fields.size() > 8 )
@@ -171,31 +190,20 @@ int Ortho::readTileIndex ( const string &path )
             tile->mean = strtoint ( fields[7] );
             tile->stdev = strtoint ( fields[8] );
         }
-
+        
         // Parse tile row and column in ortho from name.
+        // If successful, store tile at appropriate location in matrix.
         
         int col = -1, row = -1;
-        size_t pos = tile->name.find_last_of ( '_' );
-        if ( pos != string::npos )
-            pos = tile->name.find_last_of ( '_', pos - 1 );
-        if ( pos != string::npos )
+        if ( Tile::getColRowFromName ( tile->name, col, row ) )
         {
-            string col_row = tile->name.substr ( pos + 1, string::npos );
-            if ( sscanf ( col_row.c_str(), "%d_%d", &col, &row ) == 2 )
+            if ( col >= 0 && col < numTilesH )
             {
-                tile->col = col;
-                tile->row = row;
-            }
-        }
-
-        // Store tile at appropriate location in matrix.
-        
-        if ( col >= 0 && col < numTilesH )
-        {
-            if ( row >= 0 && row < numTilesV )
-            {
-                tiles[row][col] = tile;
-                numTiles++;
+                if ( row >= 0 && row < numTilesV )
+                {
+                    tiles[row][col] = tile;
+                    numTiles++;
+                }
             }
         }
     }
@@ -204,7 +212,7 @@ int Ortho::readTileIndex ( const string &path )
     return numTiles;
 }
 
-int Ortho::readPredictions ( const string &parentDir, int clasOverride )
+int Ortho::readPredictions ( const string &parentDir, Penguin::Class clasOverride )
 {
     int numPredictions = 0;
     for ( int row = 0; row < numTilesV; row++ )
@@ -225,4 +233,100 @@ int Ortho::readPredictions ( const string &parentDir, int clasOverride )
     }
     
     return numPredictions;
+}
+
+// Reads validation labels from a CSV file at the specified path.
+// The expected format is: tileName,label,x,y,width,height. Example:
+// croz_20201129_144_434,no_ADPE,0.53943,0.507131,0.037752,0.092282
+// croz_20201129_111_349,ADPE_a,0.469169,0.855705,0.065017,0.088087
+// croz_20201129_141_371,ADPE_a_stand,0.25,0.911074,0.036074,0.116611
+// Assumes this Ortho's tiles have already been allocated & populated.
+// Returns the total number of validations read, or zero on failure.
+
+int Ortho::readValidations ( const string &path )
+{
+    FILE *file = fopen ( path.c_str(), "r" );
+    if ( file == nullptr )
+        return 0;
+    
+    // read CSV header line
+    
+    string line;
+    fgetline ( file, line );
+    
+    int numValidations = 0;
+    while ( fgetline ( file, line ) )
+    {
+        vector<string> fields = split_csv ( line );
+        if ( fields.size() < 6 )
+            continue;
+
+        int col = -1, row = -1;
+        if ( ! Tile::getColRowFromName ( fields[0], col, row ) )
+            continue;
+        
+        // Make sure we have a tile to store the validation into
+        
+        Tile *tile = tiles[row][col];
+        if ( tile == nullptr )
+            continue;
+        
+        Penguin p;
+
+        // Get class label
+        
+        if ( fields[1].compare ( "no_ADPE" ) == 0 )
+            p.clas = Penguin::kNone;
+        else if ( fields[1].compare ( "ADPE_a" ) == 0 )
+            p.clas = Penguin::kAdult;
+        else if ( fields[1].compare ( "ADPE_a_stand" ) == 0 )
+            p.clas = Penguin::kAdultStand;
+        else if ( fields[1].compare ( "ADPE_a_chick" ) == 0 )
+            p.clas = Penguin::kChick;
+        else
+            continue;
+        
+        p.prob = 1.0;
+
+        // Get bounding box
+        
+        p.cenx = strtofloat ( fields[2] );
+        p.ceny = strtofloat ( fields[3] );
+        p.width = strtofloat ( fields[4] );
+        p.height = strtofloat ( fields[5] );
+        
+        tile->validations.push_back ( p );
+        numValidations++;
+    }
+    
+    fclose ( file );
+    return numValidations;
+}
+
+// Counts total number of penguins (predictions or validations) of a particular class (class)
+// for all tiles in this ortho. If clas is Penguin::kAny, counts all penguins of any class in the ortho.
+
+int Ortho::countPenguins ( Penguin::Class clas, bool predictions )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr )
+            {
+                vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
+                if ( clas == Penguin::kAny )
+                    total += penguins.size();
+                else
+                    for ( Penguin &p : penguins )
+                        if ( p.clas == clas )
+                            total++;
+            }
+        }
+    }
+
+    return total;
 }
