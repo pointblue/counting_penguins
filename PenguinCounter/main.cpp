@@ -48,5 +48,30 @@ int main(int argc, const char * argv[])
     n = ortho.countPenguins ( Penguin::kNone, false );
     cout << "Counted " << n << " validated tiles with no validation labels.\n";
 
+    Penguin min, max, mean, stdev;
+    n = ortho.getPenguinStats ( Penguin::kAdult, true, min, max, mean, stdev );
+    printf ( "Predicted Adult Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Predicted Adult Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
+    n = ortho.getPenguinStats ( Penguin::kAdultStand, true, min, max, mean, stdev );
+    printf ( "Predicted Adult Stand Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Predicted Adult Stand Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
+    n = ortho.getPenguinStats ( Penguin::kChick, true, min, max, mean, stdev );
+    printf ( "Predicted Chick Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Predicted Chick Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
+    n = ortho.getPenguinStats ( Penguin::kAdult, false, min, max, mean, stdev );
+    printf ( "Validated Adult Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Validated Adult Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
+    n = ortho.getPenguinStats ( Penguin::kAdultStand, false, min, max, mean, stdev );
+    printf ( "Validated Adult Stand Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Validated Adult Stand Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
+    n = ortho.getPenguinStats ( Penguin::kChick, false, min, max, mean, stdev );
+    printf ( "Validated Chick Mean n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, mean.cenx, mean.ceny, mean.sizex, mean.sizey );
+    printf ( "Validated Chick Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
+
     return 0;
 }

@@ -3,14 +3,45 @@
 //
 //  Created by Tim DeBenedictis on 12/5/22.
 
+#include <algorithm>
 #include "PenguinCounter.hpp"
 #include "SSUtilities.hpp"
+
+// Penguin default constructor
+
+Penguin::Penguin ( void )
+{
+    clas = kAny;
+    prob = INFINITY;
+    cenx = ceny = INFINITY;
+    sizex = sizey = INFINITY;
+    left = top = right = bottom = -1;
+}
+
+// destructor
+
+Penguin::~Penguin ( void )
+{
+    
+}
+
+void Penguin::getPixelCenter ( int &h, int &v )
+{
+    h = ( left + right ) / 2;
+    v = ( top + bottom ) / 2;
+}
+
+void Penguin::getPixelSize ( int &w, int &h )
+{
+    w = right - left;
+    h = bottom - top;
+}
 
 // Tile default constructor
 
 Tile::Tile ( void )
 {
-    col = row = left = top = width = height -1;
+    left = top = width = height -1;
     east = north = INFINITY;
     min = max = -1;
     mean = stdev = INFINITY;
@@ -67,10 +98,11 @@ int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
     {
         Penguin p;
         
-        if ( sscanf ( line.c_str(), "%d %f %f %f %f %f", &p.clas, &p.cenx, &p.ceny, &p.width, &p.height, &p.prob ) == 6 )
+        if ( sscanf ( line.c_str(), "%d %f %f %f %f %f", &p.clas, &p.cenx, &p.ceny, &p.sizex, &p.sizey, &p.prob ) == 6 )
         {
             if ( clasOverride != Penguin::kNone )
                 p.clas = clasOverride;
+            setPenguinBounds ( p );
             predictions.push_back ( p );
             numPredictions++;
         }
@@ -78,6 +110,19 @@ int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
     
     fclose ( file );
     return numPredictions;
+}
+
+// Computes penguin bounding box in pixels in parent orthomosaic
+// from bounding box relative to local tile coordinates.
+
+void Tile::setPenguinBounds ( Penguin &p )
+{
+    int w = width * p.sizex, h = height * p.sizey;
+    int x = width * p.cenx, y = height * p.ceny;
+    p.left = left + x - w / 2;
+    p.top = top + y - w / 2;
+    p.right = left + w;
+    p.bottom = top + h;
 }
 
 Ortho::Ortho ( void )
@@ -290,11 +335,28 @@ int Ortho::readValidations ( const string &path )
 
         // Get bounding box
         
-        p.cenx = strtofloat ( fields[2] );
-        p.ceny = strtofloat ( fields[3] );
-        p.width = strtofloat ( fields[4] );
-        p.height = strtofloat ( fields[5] );
+        if ( fields.size() > 10 )
+        {
+            // format of croz_20211127:
+            // img_file,category,box_left,box_top,box_height,box_width,img_width,img_height,int_category,box_center_w,box_center_h,box_area
+            
+            p.cenx = strtofloat ( fields[9] );
+            p.ceny = strtofloat ( fields[10] );
+            p.sizex = strtofloat ( fields[5] );
+            p.sizey = strtofloat ( fields[4] );
+        }
+        else
+        {
+            // format of croz_20201129:
+            // tileName,label,x,y,width,height
+
+            p.cenx = strtofloat ( fields[2] );
+            p.ceny = strtofloat ( fields[3] );
+            p.sizex = strtofloat ( fields[4] );
+            p.sizey = strtofloat ( fields[5] );
+        }
         
+        tile->setPenguinBounds ( p );
         tile->validations.push_back ( p );
         numValidations++;
     }
@@ -318,15 +380,76 @@ int Ortho::countPenguins ( Penguin::Class clas, bool predictions )
             if ( tile != nullptr )
             {
                 vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
-                if ( clas == Penguin::kAny )
-                    total += penguins.size();
-                else
-                    for ( Penguin &p : penguins )
-                        if ( p.clas == clas )
-                            total++;
+                for ( Penguin &p : penguins )
+                    if ( p.clas == clas || clas == Penguin::kAny )
+                        total++;
             }
         }
     }
 
+    return total;
+}
+
+int Ortho::getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min, Penguin &max, Penguin &mean, Penguin &stdev )
+{
+    int total = 0;
+    
+    mean.cenx = mean.ceny = mean.sizex = mean.sizey = 0;
+    stdev.cenx = stdev.ceny = stdev.sizex = stdev.sizey = 0;
+    min.cenx = min.ceny = min.sizex = min.sizey = INFINITY;
+    max.cenx = max.ceny = max.sizex = max.sizey = -INFINITY;
+
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr )
+            {
+                vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
+                for ( Penguin &p : penguins )
+                {
+                    if ( p.clas == clas || clas == Penguin::kAny )
+                    {
+                        mean.cenx += p.cenx;
+                        mean.ceny += p.ceny;
+                        mean.sizex += p.sizex;
+                        mean.sizey += p.sizey;
+
+                        stdev.cenx += p.cenx * p.cenx;
+                        stdev.ceny += p.ceny * p.ceny;
+                        stdev.sizex += p.sizex * p.sizex;
+                        stdev.sizey += p.sizey * p.sizey;
+
+                        min.cenx = std::min ( min.cenx, p.cenx );
+                        min.ceny = std::min ( min.ceny, p.ceny );
+                        min.sizex = std::min ( min.sizex, p.sizex );
+                        min.sizey = std::min ( min.sizey, p.sizey );
+
+                        max.cenx = std::max ( max.cenx, p.cenx );
+                        max.ceny = std::max ( max.ceny, p.ceny );
+                        max.sizex = std::max ( max.sizex, p.sizex );
+                        max.sizey = std::max ( max.sizey, p.sizey );
+
+                        total++;
+                    }
+                }
+            }
+        }
+    }
+
+    if ( total > 0 )
+    {
+        mean.cenx /= total;
+        mean.ceny /= total;
+        mean.sizex /= total;
+        mean.sizey /= total;
+        
+        stdev.cenx = sqrt ( stdev.cenx / total - mean.cenx * mean.cenx );
+        stdev.ceny = sqrt ( stdev.ceny / total - mean.ceny * mean.ceny );
+        stdev.sizex = sqrt ( stdev.sizex / total - mean.sizex * mean.sizex );
+        stdev.sizey = sqrt ( stdev.sizey / total - mean.sizey * mean.sizey );
+    }
+    
     return total;
 }

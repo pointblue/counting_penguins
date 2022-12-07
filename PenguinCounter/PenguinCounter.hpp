@@ -18,26 +18,33 @@ using namespace std;
 
 struct Penguin
 {
-    enum Class                 // Penguin class identifiers
+public:
+    enum Class                    // Penguin class identifiers
     {
-        kAny = -1,             // all/ant penguin classes
-        kNone = 0,             // no_ADPE
-        kAdultStand = 1,       // ADPE_a_stand
-        kAdult = 2,            // ADPE_a
-        kChick = 3             // ADPE_j
+        kAny = -1,                // all/ant penguin classes
+        kNone = 0,                // no_ADPE
+        kAdultStand = 1,          // ADPE_a_stand
+        kAdult = 2,               // ADPE_a
+        kChick = 3                // ADPE_j
     };
 
-    Class clas;                // classification (kAdultStand, kAdult, etc.)
-    float prob;                // detection probability
-    float cenx, ceny;          // bounding box center position as fraction of tile width/height
-    float width, height;       // bounding box width and height as fraction of tile width/height
+    Class clas;                   // classification (kAdultStand, kAdult, etc.)
+    float prob;                   // detection probability
+    float cenx, ceny;             // bounding box center position as fraction of tile width/height
+    float sizex, sizey;           // bounding box width and height as fraction of tile width/height
+    int left, top, right, bottom; // bounding box in pixels in original ortho
+    
+    Penguin ( void );             // default constructor
+    ~Penguin ( void );            // destructor
+    
+    void getPixelCenter ( int &h, int &v );
+    void getPixelSize ( int &w, int &h );
 };
 
 class Tile
 {
 public:
     string name;                   // file name
-    int col, row;                  // position in tile matrix generated from parent orthomosaic; counted from (0,0)
     int left, top;                 // coordinates of (left,top) corner pixel in parent orthomosaic
     int width, height;             // dimensions in pixels
     double east, north;            // geographical longitude and latitude corresonding to (left,top)
@@ -53,6 +60,7 @@ public:
 
     int readPredictions ( const string &path, Penguin::Class clasOver = Penguin::kNone );
     static bool getColRowFromName ( const string &name, int &col, int &row );
+    void setPenguinBounds ( Penguin &p );
 };
 
 class Ortho
@@ -75,6 +83,7 @@ public:
     int readPredictions ( const string &path, Penguin::Class clasOver = Penguin::kNone );
     int readValidations ( const string &path );
     int countPenguins ( Penguin::Class clas, bool predictions );
+    int getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min, Penguin &max, Penguin &mean, Penguin &stdev );
 };
 
 #endif /* PenguinCounter_hpp */
