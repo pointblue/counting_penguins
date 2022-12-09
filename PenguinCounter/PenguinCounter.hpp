@@ -29,16 +29,12 @@ public:
     };
 
     Class clas;                   // classification (kAdultStand, kAdult, etc.)
-    float prob;                   // detection probability
-    float cenx, ceny;             // bounding box center position as fraction of tile width/height
-    float sizex, sizey;           // bounding box width and height as fraction of tile width/height
-    int left, top, right, bottom; // bounding box in pixels in original ortho
+    float prob;                   // detection probability; INFINITY if unknown
+    float cenx, ceny;             // bounding box center position as fraction of tile width/height (if < 1.0) or absolute pixels in orthomosaic (if > 1.0); INFINITY if undknown
+    float sizex, sizey;           // bounding box width and height as fraction of tile width/height (if < 1.0) or absolute pixels in orthomosaic (if > 1.0); INFINITY if unknown
     
     Penguin ( void );             // default constructor
     ~Penguin ( void );            // destructor
-    
-    void getPixelCenter ( int &h, int &v );
-    void getPixelSize ( int &w, int &h );
 };
 
 class Tile
@@ -60,7 +56,9 @@ public:
 
     int readPredictions ( const string &path, Penguin::Class clasOver = Penguin::kNone );
     static bool getColRowFromName ( const string &name, int &col, int &row );
-    void setPenguinBounds ( Penguin &p );
+
+    void tileToOrthoCoords ( Penguin &p );
+    void orthoToTileCoords ( Penguin &p );
 };
 
 class Ortho
@@ -83,9 +81,12 @@ public:
     int readPredictions ( const string &path, Penguin::Class clasOver = Penguin::kNone );
     int readValidations ( const string &path );
     int countPenguins ( Penguin::Class clas, bool predictions, bool validatedTilesOnly = false );
+    int countEmptyTiles ( bool predictions, bool validatedTilesOnly = false );
     int countValidatedTiles ( void );
-    int countEmptyTiles ( bool predictions );
     int getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min, Penguin &max, Penguin &mean, Penguin &stdev );
+    int deleteOutsizedPenguins ( Penguin::Class clas, float minSizeX, float maxSizeX, float minSizeY, float MaxSizeY );
+    void tileToOrthoPenguins ( void );
+    void orthoToTilePenguins ( void );
 };
 
 #endif /* PenguinCounter_hpp */

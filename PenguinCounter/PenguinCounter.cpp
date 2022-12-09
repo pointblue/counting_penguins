@@ -15,7 +15,6 @@ Penguin::Penguin ( void )
     prob = INFINITY;
     cenx = ceny = INFINITY;
     sizex = sizey = INFINITY;
-    left = top = right = bottom = -1;
 }
 
 // destructor
@@ -23,18 +22,6 @@ Penguin::Penguin ( void )
 Penguin::~Penguin ( void )
 {
     
-}
-
-void Penguin::getPixelCenter ( int &h, int &v )
-{
-    h = ( left + right ) / 2;
-    v = ( top + bottom ) / 2;
-}
-
-void Penguin::getPixelSize ( int &w, int &h )
-{
-    w = right - left;
-    h = bottom - top;
 }
 
 // Tile default constructor
@@ -103,7 +90,6 @@ int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
         {
             if ( clasOverride != Penguin::kNone )
                 p.clas = clasOverride;
-            setPenguinBounds ( p );
             predictions.push_back ( p );
             numPredictions++;
         }
@@ -113,17 +99,26 @@ int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
     return numPredictions;
 }
 
-// Computes penguin bounding box in pixels in parent orthomosaic
-// from bounding box relative to local tile coordinates.
+// Converts penguin bounding box from tile coordinates (i.e. fraction of tile size)
+// to absolute orthomosaic coordinates (i.e. pixels relative to ortho top left)
 
-void Tile::setPenguinBounds ( Penguin &p )
+void Tile::tileToOrthoCoords ( Penguin &p )
 {
-    int w = width * p.sizex, h = height * p.sizey;
-    int x = width * p.cenx, y = height * p.ceny;
-    p.left = left + x - w / 2;
-    p.top = top + y - w / 2;
-    p.right = left + w;
-    p.bottom = top + h;
+    p.cenx = left + width * p.cenx;
+    p.ceny = top + height * p.ceny;
+    p.sizex = width * p.sizex;
+    p.sizey = height * p.sizey;
+}
+
+// Converts penguin bounding box absolute orthomosaic coordinates (i.e. pixels relative to ortho top left)
+// to tile-relative coordinates (i.e. fraction of tile size)
+
+void Tile::orthoToTileCoords ( Penguin &p )
+{
+    p.cenx = ( p.cenx - left ) / width;
+    p.ceny = ( p.ceny - top ) / height;
+    p.sizex /= width;
+    p.sizey /= height;
 }
 
 Ortho::Ortho ( void )
@@ -360,7 +355,6 @@ int Ortho::readValidations ( const string &path )
         
         // Discard "no_ADPE" labels.
         
-        tile->setPenguinBounds ( p );
         if ( p.clas != Penguin::kNone )
             tile->validations.push_back ( p );
 
@@ -369,35 +363,6 @@ int Ortho::readValidations ( const string &path )
     
     fclose ( file );
     return numValidations;
-}
-
-// Counts total number of penguins (predictions or validations) of a particular class (class)
-// for all tiles in this ortho. If clas is Penguin::kAny, counts all penguins of any class in the ortho.
-// If validatedTilesOnly is true, only counts penguins in tiles with validations; implied if predictions is false.
-
-int Ortho::countPenguins ( Penguin::Class clas, bool predictions, bool validatedTilesOnly )
-{
-    int total = 0;
-    
-    for ( int row = 0; row < numTilesV; row++ )
-    {
-        for ( int col = 0; col < numTilesH; col++ )
-        {
-            Tile *tile = tiles[row][col];
-            if ( tile != nullptr )
-            {
-                if ( validatedTilesOnly && tile->validations.size() == 0 )
-                    continue;
-                
-                vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
-                for ( Penguin &p : penguins )
-                    if ( p.clas == clas || clas == Penguin::kAny )
-                        total++;
-            }
-        }
-    }
-
-    return total;
 }
 
 // Counts total number of tiles in this ortho that have been validated
@@ -420,10 +385,40 @@ int Ortho::countValidatedTiles ( void )
     return total;
 }
 
-// Counts total number of tiles in this ortho that contain
-// no predicted (or validated) penguins.
+// Counts total number of penguins (predictions or validations) of a particular class (class)
+// for all tiles in this ortho. If clas is Penguin::kAny, counts all penguins of any class in the ortho.
+// If validatedTilesOnly is true, only counts penguins in tiles with validations; implied if predictions is false.
 
-int Ortho::countEmptyTiles ( bool predictions )
+int Ortho::countPenguins ( Penguin::Class clas, bool predictions, bool validatedTilesOnly )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr )
+            {
+                if ( validatedTilesOnly && tile->validated == false )
+                    continue;
+                
+                vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
+                for ( Penguin &p : penguins )
+                    if ( p.clas == clas || clas == Penguin::kAny )
+                        total++;
+            }
+        }
+    }
+
+    return total;
+}
+
+// Counts total number of tiles in this ortho that contain zero penguin predictions (if predictions is true)
+// or zero penguin validation  labels (if predictions is false).
+// If validatedTilesOnly is true, only counts empty tiles that have been human-validated.
+
+int Ortho::countEmptyTiles ( bool predictions, bool validatedTilesOnly )
 {
     int total = 0;
     
@@ -435,6 +430,9 @@ int Ortho::countEmptyTiles ( bool predictions )
             if ( tile == nullptr )
                 continue;
             
+            if ( validatedTilesOnly && tile->validated == false )
+                continue;
+
             if ( predictions && tile->predictions.size() == 0 )
                 total++;
             else if ( tile->validated && tile->validations.size() == 0 )
@@ -507,4 +505,86 @@ int Ortho::getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min
     }
     
     return total;
+}
+
+// Deletes penguin predictions of the specified class (clas), or of any class if clas is Penguin::kAny.
+// whose bounding boxes are smaller than the specified minimum (minSizeX, minSizeY)
+// or larger than the specified maximum (maxSizeX, maxSizeY)
+// Returns total number of penguins deleted.
+
+int Ortho::deleteOutsizedPenguins ( Penguin::Class clas, float minSizeX, float maxSizeX, float minSizeY, float maxSizeY )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr )
+            {
+                vector<Penguin> &penguins = tile->predictions;
+                auto p = penguins.begin();
+                while ( p != penguins.end() )
+                {
+                    if ( ( p->clas == clas || clas == Penguin::kAny ) )
+                    {
+                        if ( p->sizex < minSizeX || p->sizex > maxSizeX || p->sizey < minSizeY || p->sizey > maxSizeY )
+                        {
+                            p = penguins.erase ( p );
+                            total++;
+                            continue;
+                        }
+                    }
+                    p++;
+                }
+            }
+        }
+    }
+
+    return total;
+}
+
+// Converts all Penguin prediction and validation label bounding boxes
+// from tile-relative to ortho-absolute coordinates.
+
+void Ortho::tileToOrthoPenguins ( void )
+{
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr )
+                continue;
+            
+            for ( Penguin &p : tile->predictions )
+                tile->tileToOrthoCoords ( p );
+            
+            for ( Penguin &p : tile->validations )
+                tile->tileToOrthoCoords ( p );
+        }
+    }
+}
+
+// Converts all Penguin prediction and validation label bounding boxes
+// from ortho-absolute to tile-relative coordinates.
+
+void Ortho::orthoToTilePenguins ( void )
+{
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr )
+                continue;
+            
+            for ( Penguin &p : tile->predictions )
+                tile->orthoToTileCoords ( p );
+            
+            for ( Penguin &p : tile->validations )
+                tile->orthoToTileCoords ( p );
+        }
+    }
 }
