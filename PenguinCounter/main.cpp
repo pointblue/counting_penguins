@@ -115,8 +115,8 @@ int main(int argc, const char * argv[])
     n = ortho.deleteOutsizedPenguins ( Penguin::kChick, min.sizex, max.sizex, min.sizey, max.sizey );
     printf ( "Deleted %d Chick penguins.\n", n );
     
-    //n = ortho.deleteImprobablePenguins ( Penguin::kAny, 0.02 );
-    //printf ( "Deleted %d improbable Penguin predictions.\n", n );
+    n = ortho.deleteImprobablePenguins ( Penguin::kAny, 0.01 );
+    printf ( "Deleted %d improbable Penguin predictions.\n", n );
     n = ortho.deDuplicate ( true );
     printf ( "Deleted %d duplicate Penguin predictions.\n", n );
     n = ortho.deDuplicate ( false );
