@@ -14,7 +14,7 @@
 
 using namespace std;
 
-// Penguin class identifiers
+// Represents a Penguin, either predicted by YOLO or labelled (validated) by a human inspector.
 
 struct Penguin
 {
@@ -29,13 +29,19 @@ public:
     };
 
     Class clas;                   // classification (kAdultStand, kAdult, etc.)
-    float prob;                   // detection probability; INFINITY if unknown
+    float prob;                   // detection probability; 1.0 means this is a validated human-labelled penguin; INFINITY if unknown
     float cenx, ceny;             // bounding box center position as fraction of tile width/height (if < 1.0) or absolute pixels in orthomosaic (if > 1.0); INFINITY if undknown
     float sizex, sizey;           // bounding box width and height as fraction of tile width/height (if < 1.0) or absolute pixels in orthomosaic (if > 1.0); INFINITY if unknown
     
     Penguin ( void );             // default constructor
     ~Penguin ( void );            // destructor
+    
+    bool overlaps ( Penguin &p );
+    bool hasDuplicates ( vector<Penguin> &penguins );
+    bool hasDuplicates ( class Tile *tile, bool predictions = true );
 };
+
+// Represents a tile within an orthomosaic, and contains all penguins (predicted and validated) within.
 
 class Tile
 {
@@ -60,6 +66,8 @@ public:
     void tileToOrthoCoords ( Penguin &p );
     void orthoToTileCoords ( Penguin &p );
 };
+
+// Represents an entire orthomosaic, and contains all tiles and penguins (predicted and validated) within.
 
 class Ortho
 {
@@ -87,6 +95,7 @@ public:
     int deleteOutsizedPenguins ( Penguin::Class clas, float minSizeX, float maxSizeX, float minSizeY, float MaxSizeY );
     void tileToOrthoPenguins ( void );
     void orthoToTilePenguins ( void );
+    int deDuplicate ( void );
 };
 
 #endif /* PenguinCounter_hpp */

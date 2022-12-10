@@ -35,11 +35,12 @@ int main(int argc, const char * argv[])
     //int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/chick_s_best/labels", Penguin::kChick );
     int numEmpty = ortho.countEmptyTiles ( true );
     cout << "Found " << numEmpty << " tiles with no predictions.\n";
+    cout << endl;
 
+    // Read validation data.
     // int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/validation_data/croz_20201129_validation_labels.csv" );
     int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/validation_data/croz_20211127_validation_labels.csv" );
     cout << "Read " << numValidations << " validation labels.\n";
-    cout << endl;
     
     // Count validation labels in validated tiles
     
@@ -115,8 +116,11 @@ int main(int argc, const char * argv[])
     printf ( "Validated Chick Stdv n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, stdev.cenx, stdev.ceny, stdev.sizex, stdev.sizey );
     n = ortho.deleteOutsizedPenguins ( Penguin::kChick, min.sizex, max.sizex, min.sizey, max.sizey );
     printf ( "Deleted %d Chick penguins.\n", n );
-    cout << endl;
     
+    n = ortho.deDuplicate();
+    printf ( "Deleted %d duplicate Penguins.\n", n );
+    cout << endl;
+
     // Count predictions in validated tiles
     
     n = ortho.countPenguins ( Penguin::kAdult, true, true );
@@ -127,6 +131,18 @@ int main(int argc, const char * argv[])
     cout << "Counted " << n << " chick predictions in validated tiles.\n";
     n = ortho.countEmptyTiles ( true, true );
     cout << "Counted " << n << " validated tiles with no predictions.\n";
+    cout << endl;
+    
+    // Count predictions in all tiles
+    
+    n = ortho.countPenguins ( Penguin::kAdult, true, false );
+    cout << "Counted " << n << " adult predictions in all tiles.\n";
+    n = ortho.countPenguins ( Penguin::kAdultStand, true, false );
+    cout << "Counted " << n << " adult stand predictions in all tiles.\n";
+    n = ortho.countPenguins ( Penguin::kChick, true, false );
+    cout << "Counted " << n << " chick predictions in all tiles.\n";
+    n = ortho.countEmptyTiles ( true, false );
+    cout << "Counted " << n << " tiles with no predictions.\n" << endl;
 
     return 0;
 }

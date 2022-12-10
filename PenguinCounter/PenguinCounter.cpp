@@ -24,6 +24,40 @@ Penguin::~Penguin ( void )
     
 }
 
+// Returns true if center of Penguin p is within this Penguin's bounding box.
+
+bool Penguin::overlaps ( Penguin &p )
+{
+    float radx = sizex / 2.0, rady = sizey / 2.0;
+    if ( p.cenx > cenx + radx || p.cenx < cenx - radx || p.ceny > ceny + rady || p.ceny < ceny - rady )
+        return false;
+    else
+        return true;
+}
+
+// Returns true if any Penguin in the vector (penguins) overlaps this penguin
+// and has a higher detection probability
+
+bool Penguin::hasDuplicates ( vector<Penguin> &penguins )
+{
+    for ( Penguin p : penguins )
+        if ( overlaps ( p ) && prob < p.prob )
+            return true;
+
+    return false;
+}
+
+// Returns true if any Penguin in (tile)'s Penguin vector of predicted penguins
+// or validated penguin labels overlaps this Penguin and has a higher detection probability.
+
+bool Penguin::hasDuplicates ( Tile *tile, bool predictions )
+{
+    if ( tile == nullptr )
+        return false;
+    
+    return hasDuplicates ( predictions ? tile->predictions : tile->validations );
+}
+
 // Tile default constructor
 
 Tile::Tile ( void )
@@ -587,4 +621,75 @@ void Ortho::orthoToTilePenguins ( void )
                 tile->orthoToTileCoords ( p );
         }
     }
+}
+
+// Deletes duplicate predicted Penguins from the entore ortho.
+// Returns number of deleted Penguins.
+
+int Ortho::deDuplicate ( void )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr )
+                continue;
+            
+            // Get tile boundaries within ortho, inset by tile overlap margins
+            
+            float tileLeft = tile->left + tileOverH, tileTop = tile->top + tileOverV;
+            float tileRight = tile->left + tileWidth - tileOverH, tileBottom = tile->top + tileHeight - tileOverV;
+
+            // For each predicted Penguin in this Tile...
+            
+            auto p = tile->predictions.begin();
+            while ( p != tile->predictions.end() )
+            {
+                // Get Penguin bounding box
+                
+                float radx = p->sizex / 2.0, rady = p->sizey / 2.0;
+                float left = p->cenx - radx, right = p->cenx + radx;
+                float top = p->ceny - rady, bottom = p->ceny + rady;
+
+                // Check if this Penguin has duplicates within this Tile,
+                // or (if needed) within adjacent tiles.
+                
+                bool dup = false;
+                if ( p->hasDuplicates ( tile ) )
+                    dup = true;
+                
+                if ( ! dup && left < tileLeft && col > 0 )
+                    if ( p->hasDuplicates ( tiles[row][col-1] ) )
+                        dup = true;
+
+                if ( ! dup && top < tileTop && row > 0 )
+                    if ( p->hasDuplicates ( tiles[row-1][col] ) )
+                        dup = true;
+                        
+                if ( ! dup && right > tileRight && col < numTilesH - 1 )
+                    if ( p->hasDuplicates ( tiles[row][col+1] ) )
+                        dup = true;
+
+                if ( ! dup && bottom > tileBottom && row < numTilesV - 1 )
+                    if ( p->hasDuplicates ( tiles[row+1][col] ) )
+                        dup = true;
+                
+                // If so, delete this Penguin!
+                
+                if ( dup )
+                {
+                    p = tile->predictions.erase ( p );
+                    total++;
+                    continue;
+                }
+                
+                p++;
+            }
+        }
+    }
+    
+    return total;
 }
