@@ -42,9 +42,15 @@ bool Penguin::overlaps ( Penguin &p )
 bool Penguin::hasDuplicates ( vector<Penguin> &penguins, vector<Penguin> &duplicates )
 {
     for ( Penguin &p : penguins )
-        if ( *this != p && overlaps ( p ) && prob < p.prob )
-            duplicates.push_back ( p );
-
+    {
+        if ( *this != p && overlaps ( p ) )
+        {
+            if ( prob < 1.0 && prob < p.prob )  // this Penguin is a prediction, compare probability to other Penguin.
+                duplicates.push_back ( p );
+            else if ( prob == 1.0 )             // this Penguin is a validation, ignore probability of other Penguin.
+                duplicates.push_back ( p );
+        }
+    }
     return duplicates.size() > 0;
 }
 
@@ -768,6 +774,16 @@ int Ortho::confusionMatrix ( int &tp, int &tn, int &fp, int &fn )
                     fp++;
             }
             
+            for ( Penguin &p : tile->validations )
+            {
+                vector<Penguin> duplicates;
+                if ( ! p.hasDuplicates ( this, row, col, true, duplicates ) )
+                    fn++;
+            }
+
+            if ( tile->validations.empty() && tile->predictions.empty() )
+                tn++;
+#if 0
             if ( tile->validations.empty() )
             {
                 if ( tile->predictions.empty() )
@@ -775,7 +791,7 @@ int Ortho::confusionMatrix ( int &tp, int &tn, int &fp, int &fn )
                 else
                     fn++;
             }
-            
+#endif
             total++;
         }
     }
