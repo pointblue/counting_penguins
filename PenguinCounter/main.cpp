@@ -1,9 +1,7 @@
-//
 //  main.cpp
 //  PenguinCounter
 //
 //  Created by Tim DeBenedictis on 12/5/22.
-//
 
 #include <iostream>
 #include "PenguinCounter.hpp"
@@ -117,8 +115,12 @@ int main(int argc, const char * argv[])
     n = ortho.deleteOutsizedPenguins ( Penguin::kChick, min.sizex, max.sizex, min.sizey, max.sizey );
     printf ( "Deleted %d Chick penguins.\n", n );
     
-    n = ortho.deDuplicate();
-    printf ( "Deleted %d duplicate Penguins.\n", n );
+    //n = ortho.deleteImprobablePenguins ( Penguin::kAny, 0.02 );
+    //printf ( "Deleted %d improbable Penguin predictions.\n", n );
+    n = ortho.deDuplicate ( true );
+    printf ( "Deleted %d duplicate Penguin predictions.\n", n );
+    n = ortho.deDuplicate ( false );
+    printf ( "Deleted %d duplicate Penguin validation labels.\n", n );
     cout << endl;
 
     // Count predictions in validated tiles
@@ -144,5 +146,25 @@ int main(int argc, const char * argv[])
     n = ortho.countEmptyTiles ( true, false );
     cout << "Counted " << n << " tiles with no predictions.\n" << endl;
 
+    // Generate confusion matrix
+
+    int tp, fp, tn, fn;
+    n = ortho.confusionMatrix ( tp, tn, fp, fn );
+    printf ( "TP %5d FP %5d\n", tp, fp );
+    printf ( "TN %5d FN %5d\n", tn, fn );
+    cout << endl;
+    
+    // Generate classification matrix
+    
+    int counts[4][4] = { 0 };
+    ortho.classificationMatrix ( counts );
+    for ( int i = 0; i < 4; i++ )
+    {
+        for ( int j = 0; j < 4; j++ )
+            printf ( "%5d ", counts[i][j] );
+        printf ( "\n");
+    }
+    
     return 0;
 }
+

@@ -36,26 +36,71 @@ bool Penguin::overlaps ( Penguin &p )
 }
 
 // Returns true if any Penguin in the vector (penguins) overlaps this penguin
-// and has a higher detection probability
+// and has a higher detection probability. Populates vector of duplicate penguins
+// (duplicates), containing zero elements if this Penguin has no duplicates.
 
-bool Penguin::hasDuplicates ( vector<Penguin> &penguins )
+bool Penguin::hasDuplicates ( vector<Penguin> &penguins, vector<Penguin> &duplicates )
 {
-    for ( Penguin p : penguins )
-        if ( overlaps ( p ) && prob < p.prob )
-            return true;
+    for ( Penguin &p : penguins )
+        if ( *this != p && overlaps ( p ) && prob < p.prob )
+            duplicates.push_back ( p );
 
-    return false;
+    return duplicates.size() > 0;
 }
 
-// Returns true if any Penguin in (tile)'s Penguin vector of predicted penguins
-// or validated penguin labels overlaps this Penguin and has a higher detection probability.
+// Returns true if this Penguin overlaps any Penguin in (tile)'s vector of
+// Penguins predictions or validation labels with a higher detection probability.
+// Populates vector of duplicate Penguins (duplicates); will contain zero elements
+// if this Penguin has no duplicates.
 
-bool Penguin::hasDuplicates ( Tile *tile, bool predictions )
+bool Penguin::hasDuplicates ( Tile *tile, bool predictions, vector<Penguin> &duplicates )
 {
     if ( tile == nullptr )
         return false;
     
-    return hasDuplicates ( predictions ? tile->predictions : tile->validations );
+    return hasDuplicates ( predictions ? tile->predictions : tile->validations, duplicates );
+}
+
+// Returns true if this Penguin overlaps any Penguin (prediction or validation)
+// in ortho tile at or adjacent to (row,col) with a higher detection probability.
+// Populates vector of duplicate Penguins (duplicates); will contain zero elements
+// if this Penguin has no duplicates.
+
+bool Penguin::hasDuplicates ( Ortho *ortho, int row, int col, bool predictions, vector<Penguin> &duplicates )
+{
+    Tile *tile = ortho->tiles[row][col];
+    if ( tile == nullptr )
+        return false;
+    
+    // Get tile boundaries within ortho, inset by tile overlap margins
+    
+    float tileLeft = tile->left + ortho->tileOverH, tileTop = tile->top + ortho->tileOverV;
+    float tileRight = tile->left + ortho->tileWidth - ortho->tileOverH, tileBottom = tile->top + ortho->tileHeight - ortho->tileOverV;
+    
+    // Get Penguin bounding box
+    
+    float radx = sizex / 2.0, rady = sizey / 2.0;
+    float left = cenx - radx, right = cenx + radx;
+    float top = ceny - rady, bottom = ceny + rady;
+    
+    // Check if this Penguin has duplicates within this Tile,
+    // or (if needed) within adjacent tiles.
+    
+    bool dup = hasDuplicates ( tile, predictions, duplicates );
+    
+    if ( left < tileLeft && col > 0 )
+        dup = dup || hasDuplicates ( ortho->tiles[row][col-1], predictions, duplicates );
+    
+    if ( top < tileTop && row > 0 )
+        dup = dup || hasDuplicates ( ortho->tiles[row-1][col], predictions, duplicates );
+    
+    if ( right > tileRight && col < ortho->numTilesH - 1 )
+        dup = dup || hasDuplicates ( ortho->tiles[row][col+1], predictions, duplicates );
+    
+    if ( bottom > tileBottom && row < ortho->numTilesV - 1 )
+        dup = dup || hasDuplicates ( ortho->tiles[row+1][col], predictions, duplicates );
+    
+    return dup;
 }
 
 // Tile default constructor
@@ -579,6 +624,39 @@ int Ortho::deleteOutsizedPenguins ( Penguin::Class clas, float minSizeX, float m
     return total;
 }
 
+int Ortho::deleteImprobablePenguins ( Penguin::Class clas, float minProb )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile != nullptr )
+            {
+                vector<Penguin> &penguins = tile->predictions;
+                auto p = penguins.begin();
+                while ( p != penguins.end() )
+                {
+                    if ( ( p->clas == clas || clas == Penguin::kAny ) )
+                    {
+                        if ( p->prob < minProb )
+                        {
+                            p = penguins.erase ( p );
+                            total++;
+                            continue;
+                        }
+                    }
+                    p++;
+                }
+            }
+        }
+    }
+
+    return total;
+}
+
 // Converts all Penguin prediction and validation label bounding boxes
 // from tile-relative to ortho-absolute coordinates.
 
@@ -623,10 +701,10 @@ void Ortho::orthoToTilePenguins ( void )
     }
 }
 
-// Deletes duplicate predicted Penguins from the entore ortho.
+// Deletes duplicate Penguin predictions or validations from the entire ortho.
 // Returns number of deleted Penguins.
 
-int Ortho::deDuplicate ( void )
+int Ortho::deDuplicate ( bool predictions )
 {
     int total = 0;
     
@@ -638,56 +716,100 @@ int Ortho::deDuplicate ( void )
             if ( tile == nullptr )
                 continue;
             
-            // Get tile boundaries within ortho, inset by tile overlap margins
-            
-            float tileLeft = tile->left + tileOverH, tileTop = tile->top + tileOverV;
-            float tileRight = tile->left + tileWidth - tileOverH, tileBottom = tile->top + tileHeight - tileOverV;
-
             // For each predicted Penguin in this Tile...
             
-            auto p = tile->predictions.begin();
-            while ( p != tile->predictions.end() )
+            vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
+            auto p = penguins.begin();
+            while ( p != penguins.end() )
             {
-                // Get Penguin bounding box
+                // Does the Penguin have duplicates in this or adjacent tiles?
                 
-                float radx = p->sizex / 2.0, rady = p->sizey / 2.0;
-                float left = p->cenx - radx, right = p->cenx + radx;
-                float top = p->ceny - rady, bottom = p->ceny + rady;
+                vector<Penguin> duplicates;
+                bool dup = p->hasDuplicates ( this, row, col, predictions, duplicates );
 
-                // Check if this Penguin has duplicates within this Tile,
-                // or (if needed) within adjacent tiles.
-                
-                bool dup = false;
-                if ( p->hasDuplicates ( tile ) )
-                    dup = true;
-                
-                if ( ! dup && left < tileLeft && col > 0 )
-                    if ( p->hasDuplicates ( tiles[row][col-1] ) )
-                        dup = true;
-
-                if ( ! dup && top < tileTop && row > 0 )
-                    if ( p->hasDuplicates ( tiles[row-1][col] ) )
-                        dup = true;
-                        
-                if ( ! dup && right > tileRight && col < numTilesH - 1 )
-                    if ( p->hasDuplicates ( tiles[row][col+1] ) )
-                        dup = true;
-
-                if ( ! dup && bottom > tileBottom && row < numTilesV - 1 )
-                    if ( p->hasDuplicates ( tiles[row+1][col] ) )
-                        dup = true;
-                
                 // If so, delete this Penguin!
                 
                 if ( dup )
                 {
-                    p = tile->predictions.erase ( p );
+                    p = penguins.erase ( p );
                     total++;
                     continue;
                 }
                 
                 p++;
             }
+        }
+    }
+    
+    return total;
+}
+
+// Generate confusion matrix
+
+int Ortho::confusionMatrix ( int &tp, int &tn, int &fp, int &fn )
+{
+    int total = 0;
+    
+    tp = tn = fp = fn = 0;
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr || tile->validated == false )
+                continue;
+            
+            for ( Penguin &p : tile->predictions )
+            {
+                vector<Penguin> duplicates;
+                if ( p.hasDuplicates ( this, row, col, false, duplicates ) )
+                    tp++;
+                else
+                    fp++;
+            }
+            
+            if ( tile->validations.empty() )
+            {
+                if ( tile->predictions.empty() )
+                    tn++;
+                else
+                    fn++;
+            }
+            
+            total++;
+        }
+    }
+    
+    return total;
+}
+
+int Ortho::classificationMatrix ( int counts[4][4] )
+{
+    int total = 0;
+    
+    for ( int row = 0; row < 4; row++ )
+        for ( int col = 0; col < 4; col++ )
+            counts[row][col] = 0;
+    
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr || tile->validated == false )
+                continue;
+            
+            for ( Penguin &p : tile->predictions )
+            {
+                vector<Penguin> duplicates;
+                if ( p.hasDuplicates ( this, row, col, false, duplicates ) )
+                {
+                    Penguin d = duplicates[0];
+                    counts[ p.clas ][ d.clas ]++;
+                }
+            }
+            
+            total++;
         }
     }
     

@@ -36,9 +36,13 @@ public:
     Penguin ( void );             // default constructor
     ~Penguin ( void );            // destructor
     
+    bool operator == ( const Penguin &p ) const = default;
+    bool operator != ( const Penguin &p ) const = default;
+
     bool overlaps ( Penguin &p );
-    bool hasDuplicates ( vector<Penguin> &penguins );
-    bool hasDuplicates ( class Tile *tile, bool predictions = true );
+    bool hasDuplicates ( vector<Penguin> &penguins, vector<Penguin> &duplicates );
+    bool hasDuplicates ( class Tile *tile, bool predictions, vector<Penguin> &duplicates );
+    bool hasDuplicates ( class Ortho *ortho, int row, int col, bool predictions, vector<Penguin> &duplicates );
 };
 
 // Represents a tile within an orthomosaic, and contains all penguins (predicted and validated) within.
@@ -93,9 +97,12 @@ public:
     int countValidatedTiles ( void );
     int getPenguinStats ( Penguin::Class clas, bool predictions, Penguin &min, Penguin &max, Penguin &mean, Penguin &stdev );
     int deleteOutsizedPenguins ( Penguin::Class clas, float minSizeX, float maxSizeX, float minSizeY, float MaxSizeY );
+    int deleteImprobablePenguins ( Penguin::Class clas, float minProb );
     void tileToOrthoPenguins ( void );
     void orthoToTilePenguins ( void );
-    int deDuplicate ( void );
+    int deDuplicate ( bool predictions );
+    int confusionMatrix ( int &tp, int &tn, int &fp, int &fn );
+    int classificationMatrix ( int counts[4][4] );
 };
 
 #endif /* PenguinCounter_hpp */
