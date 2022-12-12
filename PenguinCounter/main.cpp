@@ -10,10 +10,12 @@ int main(int argc, const char * argv[])
 {
     Ortho ortho;
     
+    //bool success = ortho.readMetadata( "/Users/timmyd/Projects/PointBlue/orthos/croz_2020-11-29_all_col.tif" );
     //int maxTiles = ortho.allocateTiles ( 182789, 171319, 512, 256, 20, 20 );  // croz_2020-11-29
+    
     int maxTiles = ortho.allocateTiles ( 185998, 178549, 512, 256, 20, 20 );  // croz_2021-11-27
     cout << "Allocated storage for " << maxTiles << " tiles in " << ortho.numTilesH << " rows x " << ortho.numTilesV << " cols.\n";
-    
+
     //int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2020-11-29/croz_2020-11-29_all_col_tilesGeorefTable.csv" );
     int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2021-11-27/croz_20211127_tilesGeorefTable.csv" );
     cout << "Read tile index with " << numTiles << " entries.\n";
@@ -65,7 +67,9 @@ int main(int argc, const char * argv[])
     cout << "Counted " << n << " validated tiles with no predictions.\n" << endl;
 
     ortho.tileToOrthoPenguins();
-    
+    bool success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions.png", 1.0 / 32.0, true, false );
+    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-validations.png", 1.0 / 32.0, false, false );
+
     Penguin min, max, mean, stdev;
     n = ortho.getPenguinStats ( Penguin::kAdult, true, min, max, mean, stdev );
     printf ( "Predicted Adult Min n=%d cenx=%.3f ceny=%.3f sizex=%.3f sizey=%.3f\n", n, min.cenx, min.ceny, min.sizex, min.sizey );
@@ -145,6 +149,8 @@ int main(int argc, const char * argv[])
     cout << "Counted " << n << " chick predictions in all tiles.\n";
     n = ortho.countEmptyTiles ( true, false );
     cout << "Counted " << n << " tiles with no predictions.\n" << endl;
+
+    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions-refined.png", 1.0 / 32.0, true, false );
 
     // Generate confusion matrix
 

@@ -103,6 +103,7 @@ public:
     int deDuplicate ( bool predictions );
     int confusionMatrix ( int &tp, int &tn, int &fp, int &fn );
     int classificationMatrix ( int counts[4][4] );
+    bool writePenguinMap ( const string &path, float scale, bool predictions, bool validatedTilesOnly );
 };
 
 #endif /* PenguinCounter_hpp */

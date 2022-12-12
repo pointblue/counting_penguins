@@ -4,6 +4,9 @@
 //  Created by Tim DeBenedictis on 12/5/22.
 
 #include <algorithm>
+#include <gdal_priv.h>
+#include <opencv2/opencv.hpp>
+
 #include "PenguinCounter.hpp"
 #include "SSUtilities.hpp"
 
@@ -264,9 +267,26 @@ int Ortho::allocateTiles ( int w, int h, int tw, int th, int tho, int tvo )
     return numTilesH * numTilesV;
 }
 
+// Opens Ortho TIFF file at (path), reads image size and geotransform.
+// Returns true if successful or false on failure.
+
 bool Ortho::readMetadata ( const string &path )
 {
-    return false;
+    GDALAllRegister();
+    GDALDataset *fin = (GDALDataset*) GDALOpen ( path.c_str(), GA_ReadOnly );
+    if ( fin == NULL )
+        return false;
+    
+    width = fin->GetRasterXSize();
+    height = fin->GetRasterYSize();
+    
+    CPLErr err = fin->GetGeoTransform ( &geotransform[0][0] );
+    GDALClose ( fin );
+    
+    if ( err != CE_None )
+        return true;
+    else
+        return false;
 }
 
 // Reads tile index CSV file at (path).
@@ -830,4 +850,48 @@ int Ortho::classificationMatrix ( int counts[4][4] )
     }
     
     return total;
+}
+
+// Writes Penguin survey map to an image file at (path). Each Penguin is represented as a single pixel in the map.
+// Adults are red, AdultStands are green, Chicks are blue. Pixels without Penguins are white.
+// The output image size relative to the original ortho is (scale); for example 1.0/32.0 writes an image 1/32 the size of the ortho.
+// If (predictions) is true, writes only predicted Penguins; if false, writes only validated Penguin labels.
+// If (validatedTilesOnly) is true, writes Penguins only in human-validated tiles; implied true if predictions is false.
+
+bool Ortho::writePenguinMap ( const string &path, float scale, bool predictions, bool validatedTilesOnly )
+{
+    int sizeY = ceil ( height * scale );
+    int sizeX = ceil ( width * scale );
+    
+    cv::Mat map ( sizeY, sizeX, CV_8UC3 );
+    map.setTo ( cv::Scalar ( 255, 255, 255 ) );
+
+    for ( int row = 0; row < numTilesV; row++ )
+    {
+        for ( int col = 0; col < numTilesH; col++ )
+        {
+            Tile *tile = tiles[row][col];
+            if ( tile == nullptr )
+                continue;
+            
+            if ( validatedTilesOnly && ! tile->validated )
+                continue;
+
+            vector<Penguin> &penguins = predictions ? tile->predictions : tile->validations;
+            for ( Penguin &p : penguins )
+            {
+                cv::Vec3b color ( 0, 0, 0 );    // format is B, G, R
+                if ( p.clas == Penguin::kAdult )
+                    color = cv::Vec3b ( 0, 0, 255 );
+                else if ( p.clas == Penguin::kAdultStand )
+                    color = cv::Vec3b ( 0, 255, 0 );
+                else if ( p.clas == Penguin::kChick )
+                    color = cv::Vec3b ( 255, 0, 0 );
+                int px = p.cenx * scale, py = p.ceny * scale;
+                map.at<cv::Vec3b> ( cv::Point ( px, py ) ) = color;
+            }
+        }
+    }
+
+    return cv::imwrite ( path.c_str(), map );
 }
