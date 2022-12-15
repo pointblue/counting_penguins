@@ -12,6 +12,9 @@
 		A38D24D42947A1FF002446F4 /* libgdal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D32947A1FF002446F4 /* libgdal.a */; };
 		A38D24D62947A24B002446F4 /* libopencv_core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D52947A24B002446F4 /* libopencv_core.a */; };
 		A38D24D82947A255002446F4 /* libopencv_imgcodecs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */; };
+		A3AF1A4D294ACC3F007BDCEA /* GImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */; };
+		A3AF1A4F294ACE26007BDCEA /* libtiff.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3AF1A4E294ACE26007BDCEA /* libtiff.a */; };
+		A3AF1A51294ACF48007BDCEA /* libjpeg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3AF1A50294ACF48007BDCEA /* libjpeg.a */; };
 		A3D728C5293E70C7006B04F5 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3D728C4293E70C7006B04F5 /* main.cpp */; };
 /* End PBXBuildFile section */
 
@@ -36,6 +39,10 @@
 		A38D24D32947A1FF002446F4 /* libgdal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libgdal.a; path = ../../../../../../opt/homebrew/lib/libgdal.a; sourceTree = "<group>"; };
 		A38D24D52947A24B002446F4 /* libopencv_core.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libopencv_core.a; path = ../../../../../../opt/homebrew/lib/libopencv_core.a; sourceTree = "<group>"; };
 		A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libopencv_imgcodecs.a; path = ../../../../../../opt/homebrew/lib/libopencv_imgcodecs.a; sourceTree = "<group>"; };
+		A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GImage.cpp; sourceTree = "<group>"; };
+		A3AF1A4C294ACC3F007BDCEA /* GImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GImage.h; sourceTree = "<group>"; };
+		A3AF1A4E294ACE26007BDCEA /* libtiff.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtiff.a; path = ../../../../../../opt/homebrew/lib/libtiff.a; sourceTree = "<group>"; };
+		A3AF1A50294ACF48007BDCEA /* libjpeg.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjpeg.a; path = ../../../../../../opt/homebrew/lib/libjpeg.a; sourceTree = "<group>"; };
 		A3D728C1293E70C7006B04F5 /* PenguinCounter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PenguinCounter; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3D728C4293E70C7006B04F5 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -45,8 +52,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A3AF1A4F294ACE26007BDCEA /* libtiff.a in Frameworks */,
 				A38D24D42947A1FF002446F4 /* libgdal.a in Frameworks */,
 				A38D24D82947A255002446F4 /* libopencv_imgcodecs.a in Frameworks */,
+				A3AF1A51294ACF48007BDCEA /* libjpeg.a in Frameworks */,
 				A38D24D62947A24B002446F4 /* libopencv_core.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -60,6 +69,8 @@
 				A38D24D32947A1FF002446F4 /* libgdal.a */,
 				A38D24D52947A24B002446F4 /* libopencv_core.a */,
 				A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */,
+				A3AF1A4E294ACE26007BDCEA /* libtiff.a */,
+				A3AF1A50294ACF48007BDCEA /* libjpeg.a */,
 			);
 			name = Libraries;
 			sourceTree = "<group>";
@@ -88,6 +99,8 @@
 				A38BC21A293EA88900E5BD95 /* SSUtilities.hpp */,
 				A38BC216293E713E00E5BD95 /* PenguinCounter.cpp */,
 				A38BC217293E713E00E5BD95 /* PenguinCounter.hpp */,
+				A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */,
+				A3AF1A4C294ACC3F007BDCEA /* GImage.h */,
 				A3D728C4293E70C7006B04F5 /* main.cpp */,
 				A38D24CF2947A160002446F4 /* Libraries */,
 			);
@@ -152,6 +165,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A38BC21B293EA88900E5BD95 /* SSUtilities.cpp in Sources */,
+				A3AF1A4D294ACC3F007BDCEA /* GImage.cpp in Sources */,
 				A3D728C5293E70C7006B04F5 /* main.cpp in Sources */,
 				A38BC218293E713E00E5BD95 /* PenguinCounter.cpp in Sources */,
 			);

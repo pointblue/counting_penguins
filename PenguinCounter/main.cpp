@@ -9,37 +9,45 @@
 int main(int argc, const char * argv[])
 {
     Ortho ortho;
+    bool success;
     
-    //bool success = ortho.readMetadata( "/Users/timmyd/Projects/PointBlue/orthos/croz_2020-11-29_all_col.tif" );
-    //int maxTiles = ortho.allocateTiles ( 182789, 171319, 512, 256, 20, 20 );  // croz_2020-11-29
+    /*
+    success = ortho.readMetadata ( "/Users/timmyd/Projects/PointBlue/orthos/croz_20211127.tif" );
+    if ( success )
+        success = ortho.downscaleOrtho ( "/Users/timmyd/Projects/PointBlue/orthos/croz_20211127.tif",
+                               1.0 / 32.0,
+                               "/Users/timmyd/Projects/PointBlue/orthos/croz_20211127_1_32.jpg" );
     
-    int maxTiles = ortho.allocateTiles ( 185998, 178549, 512, 256, 20, 20 );  // croz_2021-11-27
+    exit ( 0 );
+    */
+    
+    int maxTiles = ortho.allocateTiles ( 182789, 171319, 512, 256, 20, 20 );  // croz_2020-11-29
+    //int maxTiles = ortho.allocateTiles ( 185998, 178549, 512, 256, 20, 20 );  // croz_2021-11-27
     cout << "Allocated storage for " << maxTiles << " tiles in " << ortho.numTilesH << " rows x " << ortho.numTilesV << " cols.\n";
 
-    //int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2020-11-29/croz_2020-11-29_all_col_tilesGeorefTable.csv" );
-    int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2021-11-27/croz_20211127_tilesGeorefTable.csv" );
+    int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2020-11-29/croz_2020-11-29_all_col_tilesGeorefTable.csv" );
+    //int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2021-11-27/croz_20211127_tilesGeorefTable.csv" );
     cout << "Read tile index with " << numTiles << " entries.\n";
 
-    //int numAdults = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/adult_s2_best/labels", Penguin::kAdult );
-    int numAdults = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/adult_s2_best/labels", Penguin::kAdult );
+    int numAdults = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/adult_s2_best/labels", Penguin::kAdult );
+    //int numAdults = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/adult_s2_best/labels", Penguin::kAdult );
     cout << "Found " << numAdults << " adult predictions.\n";
     
-    //int numAdultStands = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/adult_stand_s5_best/labels", Penguin::kAdultStand );
-    int numAdultStands = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/adult_stand_s5_best/labels", Penguin::kAdultStand );
+    int numAdultStands = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/adult_stand_s5_best/labels", Penguin::kAdultStand );
+    //int numAdultStands = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/adult_stand_s5_best/labels", Penguin::kAdultStand );
     cout << "Found " << numAdultStands << " adult stand predictions.\n";
 
-    //int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/chick_s_best/labels", Penguin::kChick );
-    int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/chick_s_best/labels", Penguin::kChick );
+    int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/chick_s_best/labels", Penguin::kChick );
+    //int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/chick_s_best/labels", Penguin::kChick );
     cout << "Found " << numChicks << " chick predictions.\n";
 
-    //int numChicks = ortho.readPredictions ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/chick_s_best/labels", Penguin::kChick );
     int numEmpty = ortho.countEmptyTiles ( true );
     cout << "Found " << numEmpty << " tiles with no predictions.\n";
     cout << endl;
 
     // Read validation data.
-    // int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/validation_data/croz_20201129_validation_labels.csv" );
-    int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/validation_data/croz_20211127_validation_labels.csv" );
+    int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29/validation_data/croz_20201129_validation_labels.csv" );
+    //int numValidations = ortho.readValidations ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27/validation_data/croz_20211127_validation_labels.csv" );
     cout << "Read " << numValidations << " validation labels.\n";
     
     // Count validation labels in validated tiles
@@ -67,8 +75,10 @@ int main(int argc, const char * argv[])
     cout << "Counted " << n << " validated tiles with no predictions.\n" << endl;
 
     ortho.tileToOrthoPenguins();
-    bool success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions.png", 1.0 / 32.0, true, false );
-    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-validations.png", 1.0 / 32.0, false, false );
+    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-predictions.png", 1.0 / 32.0, true, false );
+    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-validations.png", 1.0 / 32.0, false, false );
+    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions.png", 1.0 / 32.0, true, false );
+    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-validations.png", 1.0 / 32.0, false, false );
 
     Penguin min, max, mean, stdev;
     n = ortho.getPenguinStats ( Penguin::kAdult, true, min, max, mean, stdev );
@@ -150,7 +160,8 @@ int main(int argc, const char * argv[])
     n = ortho.countEmptyTiles ( true, false );
     cout << "Counted " << n << " tiles with no predictions.\n" << endl;
 
-    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions-refined.png", 1.0 / 32.0, true, false );
+    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2021-11-27-predictions-refined.png", 1.0 / 32.0, true, false );
+    success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-predictions-refined.png", 1.0 / 32.0, true, false );
 
     // Generate confusion matrix
 

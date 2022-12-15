@@ -104,6 +104,7 @@ public:
     int confusionMatrix ( int &tp, int &tn, int &fp, int &fn );
     int classificationMatrix ( int counts[4][4] );
     bool writePenguinMap ( const string &path, float scale, bool predictions, bool validatedTilesOnly );
+    bool downscaleOrtho ( const string &path, float scale, const string &outpath );
 };
 
 #endif /* PenguinCounter_hpp */

@@ -7,6 +7,7 @@
 #include <gdal_priv.h>
 #include <opencv2/opencv.hpp>
 
+#include "GImage.h"
 #include "PenguinCounter.hpp"
 #include "SSUtilities.hpp"
 
@@ -283,10 +284,7 @@ bool Ortho::readMetadata ( const string &path )
     CPLErr err = fin->GetGeoTransform ( &geotransform[0][0] );
     GDALClose ( fin );
     
-    if ( err != CE_None )
-        return true;
-    else
-        return false;
+    return err == CE_None ? true : false;
 }
 
 // Reads tile index CSV file at (path).
@@ -882,11 +880,11 @@ bool Ortho::writePenguinMap ( const string &path, float scale, bool predictions,
             {
                 cv::Vec3b color ( 0, 0, 0 );    // format is B, G, R
                 if ( p.clas == Penguin::kAdult )
-                    color = cv::Vec3b ( 0, 0, 255 );
+                    color = cv::Vec3b ( 0, 0, 255 );    // Adults are Red
                 else if ( p.clas == Penguin::kAdultStand )
-                    color = cv::Vec3b ( 0, 255, 0 );
+                    color = cv::Vec3b ( 0, 255, 0 );    // AdultStands are Green
                 else if ( p.clas == Penguin::kChick )
-                    color = cv::Vec3b ( 255, 0, 0 );
+                    color = cv::Vec3b ( 255, 0, 0 );    // Chicks are Blue
                 int px = p.cenx * scale, py = p.ceny * scale;
                 map.at<cv::Vec3b> ( cv::Point ( px, py ) ) = color;
             }
@@ -894,4 +892,50 @@ bool Ortho::writePenguinMap ( const string &path, float scale, bool predictions,
     }
 
     return cv::imwrite ( path.c_str(), map );
+}
+
+bool Ortho::downscaleOrtho ( const string &path, float scale, const string &outpath )
+{
+    TIFF *tiff = GOpenTIFFImage ( path.c_str() );
+    if ( tiff == NULL )
+        return false;
+
+    int stripHeight = 1.0 / scale;
+    GImagePtr image = GCreateImage ( width, stripHeight, 32 );
+    if ( image == NULL )
+        return NULL;
+    
+    int sizeY = ceil ( height * scale );
+    int sizeX = ceil ( width * scale );
+    cv::Mat map ( sizeY, sizeX, CV_8UC3 );
+
+    for ( int row = 0; row < sizeY; row++ )
+    {
+        int stripTop = row * stripHeight;
+        int stripBottom = min ( stripTop + stripHeight, height );
+        int result = GReadTIFFImageStrip ( tiff, stripTop, stripBottom - stripTop, image, 0 );
+        if ( result == 0 )
+            break;
+        
+        for ( int col = 0; col < sizeX; col++ )
+        {
+            int cellLeft = col * stripHeight;
+            int cellRight = min ( cellLeft + stripHeight, width );
+            float rgba[4] = { 0 };
+            
+            GGetAverageColor ( image, cellLeft, 0, cellRight - cellLeft, stripBottom - stripTop, rgba );
+            if ( rgba[2] != 255 || rgba[1] != 255 || rgba[0] != 255 )
+                rgba[2] = rgba[2];
+            
+            cv::Vec3b color ( rgba[2], rgba[1], rgba[0] );
+            map.at<cv::Vec3b> ( cv::Point ( col, row ) ) = color;
+        }
+        
+        printf ( "Processed row %d of %d.\n", row, sizeY );
+    }
+    
+    GDeleteImage ( image );
+    TIFFClose ( tiff );
+
+    return cv::imwrite ( outpath.c_str(), map );
 }
