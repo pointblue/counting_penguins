@@ -28,6 +28,20 @@ Penguin::~Penguin ( void )
     
 }
 
+// Equality operator
+
+bool Penguin::operator == ( const Penguin &p )
+{
+    return clas == p.clas && prob == p.prob && cenx == p.cenx && ceny == p.ceny && sizex == p.sizex && sizey == p.sizey;
+}
+
+// Inequality operator
+
+bool Penguin::operator != ( const Penguin &p )
+{
+    return clas != p.clas || prob != p.prob || cenx != p.cenx || ceny != p.ceny || sizex != p.sizex || sizey != p.sizey;
+}
+
 // Returns true if center of Penguin p is within this Penguin's bounding box.
 
 bool Penguin::overlaps ( Penguin &p )
@@ -175,7 +189,7 @@ int Tile::readPredictions ( const string &path, Penguin::Class clasOverride )
     {
         Penguin p;
         
-        if ( sscanf ( line.c_str(), "%d %f %f %f %f %f", &p.clas, &p.cenx, &p.ceny, &p.sizex, &p.sizey, &p.prob ) == 6 )
+        if ( sscanf ( line.c_str(), "%d %f %f %f %f %f", (int *) &p.clas, &p.cenx, &p.ceny, &p.sizex, &p.sizey, &p.prob ) == 6 )
         {
             if ( clasOverride != Penguin::kNone )
                 p.clas = clasOverride;
@@ -288,13 +302,14 @@ bool Ortho::readMetadata ( const string &path )
 }
 
 // Reads tile index CSV file at (path).
-// Returns number of tile entries read from index.
+// Returns number of tile entries read from index
+// or -1 on failure to open file.
 
 int Ortho::readTileIndex ( const string &path )
 {
     FILE *file = fopen ( path.c_str(), "r" );
     if ( file == nullptr )
-        return false;
+        return -1;
     
     // read CSV header line
     
@@ -309,7 +324,7 @@ int Ortho::readTileIndex ( const string &path )
         vector<string> fields = split_csv ( line );
         if ( fields.size() < 5 )
             continue;
-        
+
         Tile *tile = new Tile ( tileWidth, tileHeight );
         if ( tile == nullptr )
             continue;

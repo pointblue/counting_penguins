@@ -17,9 +17,9 @@ void print_usage_and_exit ( const char *exename, int exitcode )
     cout << "Usage: " << exename << " ortho index adults stands chicks validations val_map raw_pred_map ref_pred_map small_ortho\n";
     cout << "ortho: input path to full-size orthomosaic in GeoTIFF format" << endl;
     cout << "index: input path to tile index in CSV format" << endl;
-    cout << "adults: input path to directory containing adult penguin predictions in TOLO .txt format" << endl;
-    cout << "stands: input path to directory containing adult standing penguin predictions in TOLO .txt format" << endl;
-    cout << "chicks: input path to directory containing penguin chick predictions in TOLO .txt format" << endl;
+    cout << "adults: input path to directory containing adult penguin predictions in YOLO .txt format" << endl;
+    cout << "stands: input path to directory containing adult standing penguin predictions in YOLO .txt format" << endl;
+    cout << "chicks: input path to directory containing penguin chick predictions in YOLO .txt format" << endl;
     cout << "validations: input path to directory containing human-validated labels in YOLO .txt format" << endl;
     cout << "val_map: output path to validations map image, or \"none\"" << endl;
     cout << "raw_pred_map: output path to raw predictions map image, or \"none\"" << endl;
@@ -56,16 +56,19 @@ int main(int argc, const char * argv[])
     success = ortho.readMetadata ( orthoPath );
     if ( success )
         cout << "Read metadata from " << orthoPath << "; width = " << ortho.width << "; height = " << ortho.height << endl;
+    else
+        cout << "Failed to read metadata from ortho " << orthoPath << endl;
 
     // Allocate storage for tiles and read tile index
     
-    //int maxTiles = ortho.allocateTiles ( 182789, 171319, 512, 256, 20, 20 );  // croz_2020-11-29
     int maxTiles = ortho.allocateTiles ( ortho.width, ortho.height, kTileWidth, kTileHeight, kTileOverlap, kTileOverlap );  // croz_2021-11-27
     cout << "Allocated storage for " << maxTiles << " tiles in " << ortho.numTilesH << " rows x " << ortho.numTilesV << " cols.\n";
 
-    //int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2020-11-29/croz_2020-11-29_all_col_tilesGeorefTable.csv" );
-    int numTiles = ortho.readTileIndex ( "/Users/timmyd/Projects/PointBlue/tiles/croz_2021-11-27/croz_20211127_tilesGeorefTable.csv" );
-    cout << "Read tile index " << indexPath << " with " << numTiles << " entries.\n";
+    int numTiles = ortho.readTileIndex ( indexPath );
+    if ( numTiles > 0 )
+        cout << "Read tile index " << indexPath << " with " << numTiles << " entries.\n";
+    else
+        cout << "Failed to read tile index " << indexPath << endl;
 
     // Read YOLO predictions of adult, adult-standing, and chick penguins.
     

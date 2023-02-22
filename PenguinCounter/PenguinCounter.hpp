@@ -36,8 +36,8 @@ public:
     Penguin ( void );             // default constructor
     ~Penguin ( void );            // destructor
     
-    bool operator == ( const Penguin &p ) const = default;
-    bool operator != ( const Penguin &p ) const = default;
+    bool operator == ( const Penguin &p );
+    bool operator != ( const Penguin &p );
 
     bool overlaps ( Penguin &p );
     bool hasDuplicates ( vector<Penguin> &penguins, vector<Penguin> &duplicates );
