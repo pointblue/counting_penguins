@@ -17,14 +17,14 @@ void print_usage_and_exit ( const char *exename, int exitcode )
     cout << "Usage: " << exename << " ortho index adults stands chicks validations val_map raw_pred_map ref_pred_map small_ortho\n";
     cout << "ortho: input path to full-size orthomosaic in GeoTIFF format" << endl;
     cout << "index: input path to tile index in CSV format" << endl;
-    cout << "adults: inpit path to directory containing adult penguin predictions in TOLO .txt format" << endl;
-    cout << "stands: inpit path to directory containing adult standing penguin predictions in TOLO .txt format" << endl;
-    cout << "chicks: inpit path to directory containing penguin chick predictions in TOLO .txt format" << endl;
+    cout << "adults: input path to directory containing adult penguin predictions in TOLO .txt format" << endl;
+    cout << "stands: input path to directory containing adult standing penguin predictions in TOLO .txt format" << endl;
+    cout << "chicks: input path to directory containing penguin chick predictions in TOLO .txt format" << endl;
     cout << "validations: input path to directory containing human-validated labels in YOLO .txt format" << endl;
-    cout << "val_map: outout path to validations map image" << endl;
-    cout << "raw_pred_map: output path to raw predictions map image" << endl;
-    cout << "ref_pred_map: output path to refined predictions map image" << endl;
-    cout << "small_ortho: output path to small version of input orthomosaic" << endl;
+    cout << "val_map: output path to validations map image, or \"none\"" << endl;
+    cout << "raw_pred_map: output path to raw predictions map image, or \"none\"" << endl;
+    cout << "ref_pred_map: output path to refined predictions map image, or \"none\"" << endl;
+    cout << "small_ortho: output path to small version of input orthomosaic, or \"none\"" << endl;
 
     exit ( exitcode );
 }
@@ -93,7 +93,7 @@ int main(int argc, const char * argv[])
     int numValidations = ortho.readValidations ( validationsPath );
     cout << "Read " << numValidations << " validation labels from " << validationsPath << endl;
     
-    // Count validation labels in validated tiles
+    // Count validated adult, adult_stand, and chick labels in validated tiles
     
     int n = ortho.countValidatedTiles();
     cout << "Counted " << n << " tiles with validation labels.\n";
@@ -106,7 +106,7 @@ int main(int argc, const char * argv[])
     n = ortho.countEmptyTiles ( false, true );
     cout << "Counted " << n << " validated tiles with no validation labels.\n"<< endl;
     
-    // Count predictions in validated tiles
+    // Count predictions of adult, adult stand, and check penguins in validated tiles
     
     n = ortho.countPenguins ( Penguin::kAdult, true, true );
     cout << "Counted " << n << " adult predictions in validated tiles.\n";
@@ -121,20 +121,25 @@ int main(int argc, const char * argv[])
     // Write output maps of validation labels and raw predictions.
     
     ortho.tileToOrthoPenguins();
-    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-predictions.png", 1.0 / 32.0, true, false );
-    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-validations.png", 1.0 / 32.0, false, false );
-    success = ortho.writePenguinMap ( outValidationaMapPath, kOutputScale, false, false );
-    if ( success )
-        cout << "Wrote validations map " << outValidationaMapPath << endl;
-    else
-        cout << "Failed to write validations map " << outValidationaMapPath << endl;
 
-    success = ortho.writePenguinMap ( outRawPredMapPath, kOutputScale, true, false );
-    if ( success )
-        cout << "Wrote raw predictions map " << outRawPredMapPath << endl;
-    else
-        cout << "Failed to write raw predictions map " << outRawPredMapPath << endl;
-
+    if ( outValidationaMapPath != "none" )
+    {
+        success = ortho.writePenguinMap ( outValidationaMapPath, kOutputScale, false, false );
+        if ( success )
+            cout << "Wrote validations map " << outValidationaMapPath << endl;
+        else
+            cout << "Failed to write validations map " << outValidationaMapPath << endl;
+    }
+    
+    if ( outRawPredMapPath != "none" )
+    {
+        success = ortho.writePenguinMap ( outRawPredMapPath, kOutputScale, true, false );
+        if ( success )
+            cout << "Wrote raw predictions map " << outRawPredMapPath << endl;
+        else
+            cout << "Failed to write raw predictions map " << outRawPredMapPath << endl;
+    }
+    
     // Get statistics on the positions and sizes of adult penguins predicted by YOLO.
     
     Penguin min, max, mean, stdev;
@@ -234,16 +239,18 @@ int main(int argc, const char * argv[])
     n = ortho.countEmptyTiles ( true, false );
     cout << "Counted " << n << " tiles with no predictions.\n" << endl;
 
-    // Write refined (de-duplicated) penguin prediction map
+    // Write refined (de-duplicated) penguin prediction map if desired
     
-    //success = ortho.writePenguinMap ( "/Users/timmyd/Projects/PointBlue/counts/croz_2020-11-29-predictions-refined.png", 1.0 / 32.0, true, false );
-    success = ortho.writePenguinMap ( outRefPredMapPath, kOutputScale, true, false );
-    if ( success )
-        cout << "Wrote refined prediction map " << outRefPredMapPath << endl;
-    else
-        cout << "Failed to write refined prediction map " << outRefPredMapPath << endl;
-    cout << endl;
-
+    if ( outRefPredMapPath != "none" )
+    {
+        success = ortho.writePenguinMap ( outRefPredMapPath, kOutputScale, true, false );
+        if ( success )
+            cout << "Wrote refined prediction map " << outRefPredMapPath << endl;
+        else
+            cout << "Failed to write refined prediction map " << outRefPredMapPath << endl;
+        cout << endl;
+    }
+    
     // Generate confusion matrix
 
     int tp, fp, tn, fn;
@@ -265,14 +272,18 @@ int main(int argc, const char * argv[])
         printf ( "\n");
     }
 
-    // Write scaled-down (small) version of input orthomosaic
+    // If desired, write scaled-down (small) version of input orthomosaic
     
-    success = ortho.downscaleOrtho ( orthoPath, kOutputScale, outSmallOrthoPath );
-    if ( success )
-        cout << "Wrote small version of ortho " << outSmallOrthoPath << endl;
-    else
-        cout << "Failed to write small version of ortho " << outSmallOrthoPath << endl;
-
+    if ( outSmallOrthoPath != "none" )
+    {
+        cout << "Generating small version of ortho " << orthoPath << endl;
+        success = ortho.downscaleOrtho ( orthoPath, kOutputScale, outSmallOrthoPath );
+        if ( success )
+            cout << "Wrote small version of ortho " << outSmallOrthoPath << endl;
+        else
+            cout << "Failed to write small version of ortho " << outSmallOrthoPath << endl;
+    }
+    
     return 0;
 }
 
