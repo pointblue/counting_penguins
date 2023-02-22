@@ -279,7 +279,7 @@ enum CSVState
 vector<string> split_csv ( const string &csv )
 {
     CSVState state = kCSVUnquotedField;
-    vector<string> fields {""};
+    vector<string> fields = { "" };
     size_t i = 0; // index of the current field
     
     for ( char c : csv )

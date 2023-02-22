@@ -903,7 +903,7 @@ bool Ortho::downscaleOrtho ( const string &path, float scale, const string &outp
     int stripHeight = 1.0 / scale;
     GImagePtr image = GCreateImage ( width, stripHeight, 32 );
     if ( image == NULL )
-        return NULL;
+        return false;
     
     int sizeY = ceil ( height * scale );
     int sizeX = ceil ( width * scale );
