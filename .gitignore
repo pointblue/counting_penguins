@@ -5,4 +5,5 @@
 .html
 *yolov5/.*
 __pycache__
+manual_counts/
 
