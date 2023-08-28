@@ -1,30 +1,32 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# cmi-penguin-pipeline
+# penguin-counting-pipeline
 
 [<img src="https://conservationmetrics.com/wp-content/uploads/conservation_metrics_350px-01.png" title="Conservation Metrics" width="350" />](https://www.conservationmetrics.com)[<img src="https://data.pointblue.org/apps/assets/images/pb-logo-full.png" title="Point Blue" width="250" />](https://www.pointblue.org)
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of cmi-penguin-pipeline is to house the code for NSF project
-\#… that runs YOLOv5 object detection models to detect 3 classes of
+The goal of penguin-counting-pipeline is to house the code for NSF project
+1834986, which runs YOLOv5 object detection models to detect 3 classes of
 Adele Penguin at colonies in Antarctica. This repo is self-contained and
-includes a test image, the models, and the code to filter and save
-predictions as shapefiles for further analysis. For brief instructions
-on how to train [see here](training_instuctions.md)
+includes a test image, python code for tiling the image and calculating some 
+information about the tiles, the models, ways to validate the models, 
+and the code to filter and save predictions as shapefiles for further analysis.
+For brief instructions on how to train [see here](training_instuctions.md)
 
-This project is an effort led by [Conservation
-Metrics](https://www.conservationmetrics.com "CMI") and [Point Blue
-Conservation Science](https://www.pointblue.org "PointBlue") , and …
+This project is an effort led by [Point Blue
+Conservation Science](https://www.pointblue.org "PointBlue") with help from [Conservation
+Metrics](https://www.conservationmetrics.com "CMI") and Stanford University.
 
 ### Requirements:
 
 -   RStudio (Version &gt;=1.4.1106)
+-   Python (Version &gt;=3.10)
 -   \~600 mb free harddrive space
 
-Tested on Windows 10, Windows Server 2019
+Tested on Windows 10, Windows Server 2019, Ubuntu
 
 ### To get started:
 

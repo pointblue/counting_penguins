@@ -1,5 +1,6 @@
 #Plots labels on tiles for checking accuracy
 #requires yolo-formatted bounding boxes with one txt file per tile (in a dir called "yolo_files")
+#(run parse_json_labels_make_yolo.py to get those)
 #and image directory with one URL per tile, with .txt and .jpg file names matching -
 #these are downloaded to local directory called "img_files" (could skip saving them locally)
 #update lines 68-71 to reflect your working setup
@@ -79,8 +80,11 @@ def main():
     img_file_dir = "C:/gballard/S031/analyses/counting_penguins/img_files/"
 
     n = 0
-    while n < 5:
-        fntxt = random.choice(os.listdir(yolo_dir))
+    while n < 1:
+        #to pick n random tiles from the list:
+        #fntxt = random.choice(os.listdir(yolo_dir))
+        #to pick a specific file (needs to be foud in yolo_dir):
+        fntxt = "croz_20211127_328_693.txt"
         fn = fntxt.strip(".txt")
         print(fn)
         fnjpg = fn+".jpg"
