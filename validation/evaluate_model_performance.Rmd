@@ -1,0 +1,557 @@
+---
+title: "Validate model predictions"
+output: html_document
+date: "2023-08-30"
+---
+# Evaluating ADPE predictions
+This notebook evaluates one model at the time to build AUC curves and other metrics to find an optimal threshold to filter predictions under some optimal penalization target.  
+### A definition:  
+Below we use the terms "snap" and "match". A snap is a prediction found within a set snapping distance to a known penguin. A match is a prediction that is determined to be the only, or the best snap to a known penguin.  
+### The logic of finding a snap and a match:  
+We want to match predictions to known penguins first in descending order of probability. So for each tile, we start sorting the predictions in descending order of probability. We loop while there are predictions to match to a known penguin.  
+  * If there are snaps*:
+    * Take the closest one, the prediction is a TP; remove the known penguin from table of knowns
+  * No snaps:
+    * The prediction is a FP
+  * If there are no more known penguins to snap to:
+    * All remaining predictions are FP 
+  * No more predictions but still some known penguins
+    * The remaining known penguins are FN
+    
+(*) A snap is made first by doing a Manhattan filter and finding all validation penguins on whose drawn box (drawn by the volunteers) the prediction falls. If the prediction falls within only one box, that's the snap. If the prediction falls within more than one box, we take the one whose center is closest to the prediction's center.
+
+
+```{r}
+## Preliminaries
+libs<-c("ggplot2","plyr", "readr", "dplyr")
+lapply(libs, require, character.only = TRUE)
+
+# basedir<-"Z:/Informatics/S031/analyses/RI_penguin_count_UAV/predict/2019/croz_20191202/"
+```
+
+Function to snap a prediction to one or more known penguins
+```{r}
+# pID is the ID of the penguin prediction we are tryng to snap
+# prob is the probability of the prediction
+# pcoords is the x.y vector of coordinates of that prediction
+# validtable is the (ever shrinking) table of known, yet to be snapped penguins in the same tile as pID
+# Return: the top snap as a match or no match as a data.frame:
+#        penguinID, prob, validID, distance, match
+findSnaps<-function(pID,prob,pcoords,validtiletable){
+    # ...if there are records in validtiletable
+    if(nrow(validtiletable)>0){
+        # Find the snaps, sort by distance, take the closest if any found
+        vttmf<-subset(validtiletable,(boxT>=pcoords[2]) & (boxB<=pcoords[2]) & (boxR>=pcoords[1]) & (boxL<=pcoords[1]))
+        if(nrow(vttmf)>0){
+            #take the closest penguin to the prediction
+            vttmf$dist<-as.numeric(sapply(1:nrow(vttmf),function(rr,vttmf,pcoords){
+                                vx<-vttmf[rr,"tilx"];vy<-vttmf[rr,"tily"]
+                                distv<-sqrt(((pcoords[1]-vx)^2)+((pcoords[2]-vy)^2))
+                                return(distv)
+                        },vttmf=vttmf,pcoords=pcoords))
+            ttmf<-vttmf[order(vttmf$dist),]
+            sdf<-data.frame(penguinID=pID, prob=prob, validID=vttmf[1,"validID"], distance=vttmf[1,"dist"], match="TP")
+        }else{
+            #No detection within the box
+            sdf<-data.frame(penguinID=pID, prob=prob, validID=NA, distance=NA, match="FP")
+        }
+
+    }else{ #no more valids to snap to
+        sdf<-data.frame(penguinID=pID, prob=prob, validID=NA, distance=NA, match="FP")
+    }
+
+    return(sdf)
+}
+```
+
+Function to loop through all predictions in a tile and try to match them
+```{r}
+# predsttable is the table with predictions
+# validttable is the table of known penguin presences
+# Return: a data.frame with match results
+matchPredictions<-function(predsttable, validttable){
+
+    snapsdf<-data.frame()
+    
+    nvr<-nrow(subset(validttable,label!="no_ADPE"))
+    #If no predictions to the tile...(possibly all FN)
+    if(nrow(predsttable)==0){
+
+        #If there are validation records...
+        if(nvr>0){
+            # If there are penguins, these are FN
+            fnrecs<-data.frame(penguinID=rep(NA,nvr), prob=rep(1,nvr), validID=validttable$validID, distance=rep(NA,nvr), match="FN")
+            snapsdf<-fnrecs
+        }else{
+            # If there are no penguins, this is a no_ADPE tile, and a TN record
+            tnprec<-data.frame(penguinID=NA, prob=1, validID=NA, distance=NA, match="TN")
+            snapsdf<-tnprec
+        }
+
+    }else{
+        # There are predictions, but what if no penguins found by observers?
+        if(nvr==0){
+            # No penguins in the tile, all predictions are FP
+            fprecs<-data.frame(penguinID=predsttable$penguinID, prob=predsttable$probDet, validID=NA, distance=NA, match="FP")
+            snapsdf<-fprecs
+        }else{
+            #we have both penguins and predictions, so...
+            #sort preds by prob descending
+            predsttable<-predsttable[order(predsttable$probDet, decreasing=T),]
+
+            #loop through each to find snaps with findSnaps
+            for(pID in predsttable$penguinID){
+                ptt<-subset(predsttable,penguinID==pID)
+                prob<-ptt$probDet
+                pcx<-ptt$tilx;pcy<-ptt$tily
+
+                #snap it
+                snapt<-findSnaps(pID=pID,prob=prob,pcoords=c(pcx,pcy),validtiletable=validttable)
+
+                #take result and add to tally
+                snapsdf<-rbind(snapsdf,snapt)
+
+                #update the validttable as needed
+                snapID<-snapt$validID
+                if(!is.na(snapID)){
+                    validttable<-subset(validttable, validID != snapID)
+                }
+
+                #if no more valids in validttable, let findSnaps handle it - set all remaining preds to FP
+
+            }
+
+            #if there are still valids, all these are FN - need to set prob to 1 so when penalizing we always have them there
+            unvr<-nrow(validttable)
+            if(unvr>0){
+                fnrecs<-data.frame(penguinID=rep(NA,unvr), prob=rep(1,unvr), validID=validttable$validID, distance=rep(NA,unvr), match="FN")
+                #add to tally
+                snapsdf<-rbind(snapsdf,fnrecs)
+            }
+        }
+    }
+    
+    return(snapsdf)
+}
+
+```
+
+load the data - CAREFUL filtering the labels to match the model
+
+```{r}
+# label "ADPE_a_stand" = model "adult_stand_s5_best"
+# label "ADPE_a" =  model "adult_s2_best"
+preddf<-read_csv("predict/2019/croz_20191202/adult_s2_best/de_duplicated_nests_v5.csv")
+valdf<-read_csv("predict/2019/croz_20191202/validation_data/croz_20191202_validation_labels.csv")
+valdf<-subset(valdf,label %in% c("no_ADPE","ADPE_a"))
+```
+
+   
+
+```{r}
+## NEED to use pixels, no relative positions - in both predictions and validations
+tiledims<-c(512,256)
+valdf$tilx<-round(valdf$x*tiledims[1])
+valdf$tily<-round(valdf$y*tiledims[2])
+# Using a Manhattan filter before the Euclidian, with the box drawn by volunteers
+# And the Euclidian only to choose the presence nearest to the prediction if there are many within the Manhattan filter
+valdf$boxL<-round((valdf$x-valdf$width)*tiledims[1])
+valdf$boxR<-round((valdf$x+valdf$width)*tiledims[1])
+valdf$boxT<-round((valdf$y+valdf$height)*tiledims[2])
+valdf$boxB<-round((valdf$y-valdf$height)*tiledims[2])
+preddf$tilx<-round(preddf$pixelX*tiledims[1])
+preddf$tily<-round(preddf$pixelY*tiledims[2])
+```
+
+MATCHING!
+```{r}
+tiles<-unique(valdf$tileName)
+# Filtering out bad tiles
+badValTiles<-c("croz_20191202_151_407", "croz_20191202_115_347", "croz_20191202_126_404", 
+               "croz_20191202_131_396", "croz_20191202_283_506", "croz_20191202_56_292")
+tiles<-tiles[which(!tiles %in% badValTiles)]
+
+validationsdf<-ldply(tiles,function(tt,predstable, validtable){
+            predsttable<-subset(predstable,grepl(tt,tilename))
+            vttable<-subset(validtable,tileName==tt)
+
+            #Add a unique ID to each validation record, so we can have referential integrity to each prediction
+            validttable<-ldply(unique(vttable$tileName),function(tnam,vttable){
+                        vtt<-subset(vttable,tileName==tnam)
+                        vtt$validID<-paste0(tnam,"::",1:nrow(vtt))
+                        return(vtt)
+                    },vttable=vttable)
+
+            rdf<-matchPredictions(predsttable=predsttable,validttable=validttable)
+            if(nrow(rdf)>0){rdf$tilename<-tt}
+            return(rdf)
+        },predstable=preddf, validtable=valdf)
+
+
+
+
+
+```
+
+
+```{r}
+library(dplyr)
+library(purrr)
+
+predstable <- preddf
+validtable = valdf
+tiles <- data.frame(tilename = tiles)
+
+
+validationsdf <- map_dfr(tiles, function(tt) {
+  
+  predsttable <- filter(predstable, grepl(tt, tiles))
+  vttable <- filter(validtable, tileName == tt)
+  
+  # Add a unique ID to each validation record
+  validttable <- vttable %>%
+    group_by(tileName) %>%
+    mutate(validID = paste0(tileName, "::", row_number())) %>%
+    ungroup()
+  
+  rdf <- matchPredictions(predsttable = predsttable, validttable = validttable)
+  
+  if(nrow(rdf) > 0) rdf$tilename <- tt
+  
+  return(rdf)
+})
+
+
+```
+
+```R
+nrow(validationsdf)
+sum(validationsdf$match=="TP")
+sum(validationsdf$match=="FP")
+sum(validationsdf$match=="FN")
+sum(validationsdf$match=="TN")
+```
+
+
+6128
+
+
+
+961
+
+
+
+4651
+
+
+
+301
+
+
+
+215
+
+
+
+```R
+hurdvals<-seq(0.01,0.99,by=0.01)
+beta<-0.5
+hurdlesdf<-ldply(hurdvals,function(mm,matches,beta){
+                        #Here are the records above hurdle, to be counted as-is
+                        mdf<-subset(matches,prob>=mm)
+    
+                        #These are the records below hurdle...
+                        # TP becomes FN, FP goes to TN, and we must count these. All others don't change
+                        fdf<-subset(matches,prob<mm) 
+                        
+                        trval<-sum(mdf$match=="TP")
+                        fnval<-sum(mdf$match=="FN") + sum(fdf$match=="TP")
+                        fpval<-sum(mdf$match=="FP")
+                        tnval<-sum(mdf$match=="TN") + sum(fdf$match=="FP")
+                        sens<-ifelse(trval+fnval==0,0,trval/(trval+fnval))
+                        spec<-ifelse(tnval+fpval==0,0,tnval/(tnval+fpval))
+                        prec<-ifelse(trval+fpval==0,0,trval/(trval+fpval))
+                        f1val<-ifelse(sens+prec==0,0,(2*sens*prec)/(sens+prec))
+                        miss<-ifelse(trval+fnval==0,0,fnval/(trval+fnval))
+                        fpper<-ifelse(trval+fpval==0,0,fpval/(trval+fpval))
+                        fbeta<-(1+(beta^2))*((prec*sens)/(((beta^2)*prec) + sens))
+                        hurddf<-data.frame(Hurdle=mm,count=sum(trval,fnval,fpval),truePos=trval,falseNeg=fnval,falsePos=fpval,
+                                            trueNeg=tnval,F1val=f1val,Sens=sens,Spec=spec,FPrate=1-spec,Prec=prec,
+                                           Miss=miss,FPper=fpper,Fbeta=fbeta,beta=beta)
+
+                        return(hurddf)
+            },matches=validationsdf,beta=beta)
+
+```
+
+
+```R
+head(hurdlesdf)
+```
+
+
+<table class="dataframe">
+<caption>A data.frame: 6 Ã 15</caption>
+<thead>
+	<tr><th></th><th scope=col>Hurdle</th><th scope=col>count</th><th scope=col>truePos</th><th scope=col>falseNeg</th><th scope=col>falsePos</th><th scope=col>trueNeg</th><th scope=col>F1val</th><th scope=col>Sens</th><th scope=col>Spec</th><th scope=col>FPrate</th><th scope=col>Prec</th><th scope=col>Miss</th><th scope=col>FPper</th><th scope=col>Fbeta</th><th scope=col>beta</th></tr>
+	<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>
+</thead>
+<tbody>
+	<tr><th scope=row>1</th><td>0.01</td><td>5913</td><td>961</td><td>301</td><td>4651</td><td> 215</td><td>0.2796043</td><td>0.7614897</td><td>0.04418413</td><td>0.9558159</td><td>0.1712402</td><td>0.2385103</td><td>0.8287598</td><td>0.2026571</td><td>0.5</td></tr>
+	<tr><th scope=row>2</th><td>0.02</td><td>4608</td><td>913</td><td>349</td><td>3346</td><td>1520</td><td>0.3307372</td><td>0.7234548</td><td>0.31237156</td><td>0.6876284</td><td>0.2143696</td><td>0.2765452</td><td>0.7856304</td><td>0.2494808</td><td>0.5</td></tr>
+	<tr><th scope=row>3</th><td>0.03</td><td>3945</td><td>872</td><td>390</td><td>2683</td><td>2183</td><td>0.3620511</td><td>0.6909667</td><td>0.44862310</td><td>0.5513769</td><td>0.2452883</td><td>0.3090333</td><td>0.7547117</td><td>0.2816174</td><td>0.5</td></tr>
+	<tr><th scope=row>4</th><td>0.04</td><td>3538</td><td>843</td><td>419</td><td>2276</td><td>2590</td><td>0.3848436</td><td>0.6679873</td><td>0.53226469</td><td>0.4677353</td><td>0.2702789</td><td>0.3320127</td><td>0.7297211</td><td>0.3068132</td><td>0.5</td></tr>
+	<tr><th scope=row>5</th><td>0.05</td><td>3285</td><td>816</td><td>446</td><td>2023</td><td>2843</td><td>0.3979517</td><td>0.6465927</td><td>0.58425812</td><td>0.4157419</td><td>0.2874251</td><td>0.3534073</td><td>0.7125749</td><td>0.3233476</td><td>0.5</td></tr>
+	<tr><th scope=row>6</th><td>0.06</td><td>3074</td><td>803</td><td>459</td><td>1812</td><td>3054</td><td>0.4142378</td><td>0.6362916</td><td>0.62762022</td><td>0.3723798</td><td>0.3070746</td><td>0.3637084</td><td>0.6929254</td><td>0.3425183</td><td>0.5</td></tr>
+</tbody>
+</table>
+
+
+
+## Examining four penalizations
+Below we explore the following penalizations:  
+  * Hurdle at the point where we get most TP detections per FP detection (green color below)
+  * Hurdle at the point where detections match the known number of penguins (purple color below)
+  * Hurdle at the point where FP represent <10% of all detections
+  * Hurdle at max(F0.5). The metric F_at_beta=0.5 is one way to penalize the model to have more TP to FP (orange color)
+We review each in terms of total number of etections vs. true number of pengions counted, the inflation/deflation factor to use to correct the counts, the ratio of TP to FP
+
+
+```R
+# This is the ROC curve - note that the y-axis does not reach 0.8... ugh!
+ggplot(hurdlesdf,aes(x=FPrate,y=Sens)) + geom_line() + 
+        geom_point(x=0.1350185, y=0.4754358, color="purple", size=4) + 
+        geom_point(x=0.2322236, y=0.5618067, color="green", size=4) +
+        geom_point(x=0.04973284, y=0.344691, color="orange", size=4) +
+        theme_bw()
+```
+
+
+    
+![png](output_11_0.png)
+    
+
+
+In the above graph, the green point is the performance under the maximum TP per FP. The purple point is the performance at the traditional hurdle of number of detections = known number of penguins. More on this below.
+
+
+```R
+plotdf<-hurdlesdf[,c("Hurdle","truePos","falsePos","falseNeg","Sens","FPrate","FPper")]
+plotdf$pctSens<-plotdf$Sens/max(plotdf$Sens) # percent of TP as % of max
+plotdf$pctFPrt<-plotdf$FPrate/max(plotdf$FPrate) # percent of FP as % of max
+ggplot(plotdf,aes(x=Hurdle)) + geom_line(aes(y=pctSens),color="blue") + 
+            geom_line(aes(y=pctFPrt),color="red") + 
+            geom_vline(xintercept=0.11, color="green") + 
+            geom_vline(xintercept=0.19, color="purple") + 
+            geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+
+    
+![png](output_13_0.png)
+    
+
+
+The segment (green and purple) within the blue and red lines is very similar for both hurdle approaches.
+
+
+```R
+plotdf$diffTPFP<-plotdf$pctSens-plotdf$pctFPrt
+ggplot(plotdf,aes(x=Hurdle,y=diffTPFP)) + geom_line() + 
+        geom_vline(xintercept=0.11, color="green") + 
+        geom_vline(xintercept=0.19, color="purple") + 
+        geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+
+    
+![png](output_15_0.png)
+    
+
+
+The above graph shows the hurdle at which we maximize the number of TP per (unit of) FP - the green line. It also shows the hurdle for the traditional hurdle value (where number of detections = number of known penguins, the purple line). That's about 0.11 and 0.19 respectively (more on this below). A hurdle lower than 0.11 results in a lot more FP for about the same number of TPs. A hurdle above 0.11 results in fewer TP per FP (see below). But bottom-line, both hurdle values have comparable performance.
+
+At the maxTP/FP hurdle point (green), the model detects at 75% the maximum sensitivity, and 25% of the maximum FPrate. This is the penalization point at which you get the most TP for the fewest FP, percent-wise. It does not mean that all detections approximate the total number of penguins (i.e., it is incorrect to assume that since you are getting 75% of the maximum sensitivity and 25% of the maximum FPrate, 75% +25% = 100%), because there are fewer FP detections than penguins, and far fewer TP than FP. There are 1,262 penguins (961 TP and 301 FN) and 4,651 FP. This is shown below.
+
+
+
+```R
+ggplot(hurdlesdf,aes(x=Hurdle,y=Sens)) + geom_line() + 
+        geom_vline(xintercept=0.11, color="green") + 
+        geom_vline(xintercept=0.19, color="purple") + 
+        geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+
+    
+![png](output_18_0.png)
+    
+
+
+
+```R
+ggplot(hurdlesdf,aes(x=Hurdle,y=FPrate)) + geom_line() + 
+        geom_vline(xintercept=0.11, color="green") + 
+        geom_vline(xintercept=0.19, color="purple") + 
+        geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+
+    
+![png](output_19_0.png)
+    
+
+
+So, in reality at this hurdle point we get about 56% of all penguins detected (709 penguins) from the TP, and about 22% of all FP (1130 "penguins"). We can plot the estimates at each hurdle point, indicating how many are TP and how many FP we get at each hurdle, like so:
+
+
+```R
+#need a table with two rows for the same hurdle, a col with count, and a col with TP/FP
+#then do a stacked bar...
+plotdf$pctTP<-plotdf$truePos/5612  #5612 is the total number of detections (i.e., TP + FP)
+plotdf$pctFP<-plotdf$falsePos/5612
+pplotdf<-reshape(plotdf[,c("Hurdle","pctTP","pctFP")],direction="long",idvar="Hurdle",varying=list(2:3),
+                 times=c("TP","FP"),v.names="pctOfDetections",timevar="Match")
+ggplot(pplotdf,aes(x=Hurdle,y=pctOfDetections)) + geom_bar(aes(fill=Match),position="stack",stat="identity") +
+        geom_hline(yintercept=0.2249, color="purple") +
+        geom_vline(xintercept=0.11, color="green") + 
+        geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+
+    
+![png](output_21_0.png)
+    
+
+
+In the above graphic, the purple line is the percent of detections that would be the equivalent to the total number of penguins found in the validations (1,262 penguins). So, the hurdle at 0.11 overshoots (there is still a good portion of the red bar above the purple line). At this hurdle there are 1,839 detections, or 577 more than there are penguins in the sample. So, one way to estimate the number of penguins is:  
+  * Hurdle total number of detections at 0.11 (this is the hurdle at which we maximize the number of TP per FP)
+  * Multiply estimate by 0.686
+
+The standard approach is to find the hurdle at which the total number of detections matches the total number of penguins found, even if this means a worse ratio of TP/FP. However, since the hurdle at which the number of detections match the known number of penguins is not far from the maximum number of correct detections per false positive, we could consider using this traditional hurdle point. 
+
+
+```R
+plotdf$sumPCT<-plotdf$pctTP + plotdf$pctFP
+subset(plotdf,sumPCT<=0.2248753)[1,]
+subset(plotdf,Hurdle==0.11)
+```
+
+
+<table class="dataframe">
+<caption>A data.frame: 1 Ã 13</caption>
+<thead>
+	<tr><th></th><th scope=col>Hurdle</th><th scope=col>truePos</th><th scope=col>falsePos</th><th scope=col>falseNeg</th><th scope=col>Sens</th><th scope=col>FPrate</th><th scope=col>FPper</th><th scope=col>pctSens</th><th scope=col>pctFPrt</th><th scope=col>diffTPFP</th><th scope=col>pctTP</th><th scope=col>pctFP</th><th scope=col>sumPCT</th></tr>
+	<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>
+</thead>
+<tbody>
+	<tr><th scope=row>19</th><td>0.19</td><td>600</td><td>657</td><td>662</td><td>0.4754358</td><td>0.1350185</td><td>0.522673</td><td>0.6243496</td><td>0.1412599</td><td>0.4830897</td><td>0.1069138</td><td>0.1170706</td><td>0.2239843</td></tr>
+</tbody>
+</table>
+
+
+
+
+<table class="dataframe">
+<caption>A data.frame: 1 Ã 13</caption>
+<thead>
+	<tr><th></th><th scope=col>Hurdle</th><th scope=col>truePos</th><th scope=col>falsePos</th><th scope=col>falseNeg</th><th scope=col>Sens</th><th scope=col>FPrate</th><th scope=col>FPper</th><th scope=col>pctSens</th><th scope=col>pctFPrt</th><th scope=col>diffTPFP</th><th scope=col>pctTP</th><th scope=col>pctFP</th><th scope=col>sumPCT</th></tr>
+	<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>
+</thead>
+<tbody>
+	<tr><th scope=row>11</th><td>0.11</td><td>709</td><td>1130</td><td>553</td><td>0.5618067</td><td>0.2322236</td><td>0.6144644</td><td>0.7377732</td><td>0.2429585</td><td>0.4948146</td><td>0.1263364</td><td>0.2013542</td><td>0.3276907</td></tr>
+</tbody>
+</table>
+
+
+
+The traditional hurdle point is 0.19 and at this hurdle the percent of TP is 10.7% of all detections, whereas at the maximum TP per FP the percent of TP is 12.5% of all detections. About every 1 in 2 detections with either hurdle is a FP.
+
+Finally, we could use a hurdle point where FP are <10% of all detections. This point would be...
+
+
+```R
+subset(plotdf,FPper<=0.1)[1,]
+```
+
+
+<table class="dataframe">
+<caption>A data.frame: 1 Ã 13</caption>
+<thead>
+	<tr><th></th><th scope=col>Hurdle</th><th scope=col>truePos</th><th scope=col>falsePos</th><th scope=col>falseNeg</th><th scope=col>Sens</th><th scope=col>FPrate</th><th scope=col>FPper</th><th scope=col>pctSens</th><th scope=col>pctFPrt</th><th scope=col>diffTPFP</th><th scope=col>pctTP</th><th scope=col>pctFP</th><th scope=col>sumPCT</th></tr>
+	<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>
+</thead>
+<tbody>
+	<tr><th scope=row>67</th><td>0.67</td><td>47</td><td>5</td><td>1215</td><td>0.03724247</td><td>0.001027538</td><td>0.09615385</td><td>0.04890739</td><td>0.001075038</td><td>0.04783235</td><td>0.008374911</td><td>0.000890948</td><td>0.009265859</td></tr>
+</tbody>
+</table>
+
+
+
+This means hurdling at 0.67 and leaves us with only 52 detections (47 + 5), which means an inflation rate of 24,269! Forget about that! Another alternative is to look for a different trade-off between TP and FP. The index F0.5 is one such compromise (this is the Fvalue but at beta = 0.5)
+
+
+```R
+ggplot(hurdlesdf,aes(x=Hurdle,y=Fbeta)) + geom_line() + 
+        geom_vline(xintercept=0.36, color="orange") + theme_bw()
+```
+
+    Warning message:
+    âRemoved 26 row(s) containing missing values (geom_path).â
+    
+
+
+    
+![png](output_29_1.png)
+    
+
+
+
+```R
+subset(plotdf,Hurdle>0.351 & Hurdle<0.37)
+```
+
+
+<table class="dataframe">
+<caption>A data.frame: 1 Ã 13</caption>
+<thead>
+	<tr><th></th><th scope=col>Hurdle</th><th scope=col>truePos</th><th scope=col>falsePos</th><th scope=col>falseNeg</th><th scope=col>Sens</th><th scope=col>FPrate</th><th scope=col>FPper</th><th scope=col>pctSens</th><th scope=col>pctFPrt</th><th scope=col>diffTPFP</th><th scope=col>pctTP</th><th scope=col>pctFP</th><th scope=col>sumPCT</th></tr>
+	<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;int&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>
+</thead>
+<tbody>
+	<tr><th scope=row>36</th><td>0.36</td><td>435</td><td>242</td><td>827</td><td>0.344691</td><td>0.04973284</td><td>0.3574594</td><td>0.4526535</td><td>0.05203182</td><td>0.4006217</td><td>0.07751247</td><td>0.04312188</td><td>0.1206344</td></tr>
+</tbody>
+</table>
+
+
+
+At this hurdle, the total number of detections is 677 (about half of all known penguins), so we would inflate by 1.864. The percent of FP per TP is 0.36 - so, 1 of every 3 detections is a FP. (This skew of fewer FP per TP is the whole point of using maxF0.5)
+
+
+```R
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
