@@ -3,6 +3,7 @@
 
 #Grant 5/23/2023 (Gull version)
 #Last update: 9/1/2023 (for using with ADPE data instead)
+# v2 re-factord to avoid hard-coding file names etc.
 
 library(dplyr)
 library(readr)
@@ -17,9 +18,44 @@ library(sf)
 wd <- "Z:/informatics/s031/analyses/RI_penguin_count_UAV/"
 setwd(wd)
 
+colony <- "royd"
+ortho_prefix <- "royd_20191204"
+model_name <- "adult_s2_best"
+label <- "ADPE_sit"
+
 # Set the directory path where the individual label files are located
 #label_path <- paste0(wd,"predict/2019/croz_20191202/adult_s2_best/labels")
-label_path <- paste0(wd,"predict/2019/croz_20191202/adult_stand_s5_best/labels")
+output_path <- paste0(wd,"predict/2019/",ortho_prefix,"/",model_name,"/")
+label_path <- paste0(output_path,"labels")
+dupe_indicators_csv <- paste0(output_path,"dupe_indicators.csv")
+dupe_indicators_shp <- paste0(output_path,"dupe_indicators.shp")
+de_duplicated_csv <- paste0(output_path,"de_duplicated.csv")
+de_duplicated_shp <- paste0(output_path,"de_duplicated.shp")
+de_duplicated_smaller_csv <- paste0(output_path,"de_duplicated_smaller.csv")
+de_duplicated_smaller_shp <- paste0(output_path,"de_duplicated_smaller.shp")
+
+# Define crs of the orthomosaic and tiles if data are projected:
+crs <- st_crs("+proj=lcc +lat_1=-76.666667 +lat_2=-79.333333 +lat_0=-78.021171 +lon_0=169.333333 +x_0=500000 +y_0=300000 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+
+georeftable <- paste0(wd,"predict/2019/",ortho_prefix,"/tiles/",ortho_prefix,"_tilesGeorefTable_v2.csv")
+
+# if you are going to need to calculate the pixel dimensions, specify which ortho this is coming from
+# the values will depend on the pixel resolution of the original orthomosaic
+# of <- r"(Y:\PenguinCounting\croz_20191202\croz_20191202.tif)"
+of <- r"(Y:\PenguinCounting\royd_20191204\royd_20191204.tif)"
+
+ortho <-
+  terra::rast(of)
+pixW <- xres(ortho)
+pixH <- yres(ortho)
+
+# for Croz_20191202:
+# pixW <- 0.0159296
+# pixH <- 0.0159385
+
+# for Royd_20191204:
+# pixW <- 0.012167
+# pixH <- 0.012167
 
 ###############################################################################
 ## Build a combined predictions df if needed
@@ -50,37 +86,36 @@ plan(multisession, workers = 16)  # Adjust the number of workers as needed
 
 # Function to process a label file and return its data frame
 process_label_file <- function(file) {
-    # Extract tile name from the file name
-    tile_name <- paste0(str_extract(file, "(croz_\\d+_\\d+_\\d+)"), ".jpg")
+  # Extract tile name from the file name
+  tile_name <- paste0(str_extract(file, paste0("(",colony,"_\\d+_\\d+_\\d+)")), ".jpg")
   
-    # Read the label file
-    labels <- read_delim(file, delim = " ", col_names = FALSE, show_col_types = FALSE)
-    
-    # Check that the label file is not empty
-    if (nrow(labels) == 0) {
-      stop("The label file is empty")
-    }
-    
-    # Create a data frame for the current file's data
-    file_data <- data.frame(
-        tileName = rep(tile_name, nrow(labels)),
-        label = labels$X1,
-        box_center_w = labels$X2,
-        box_center_h = labels$X3,
-        box_width = labels$X4,
-        box_height = labels$X5,
-        confidence = labels$X6
-    )
-    
-    return(file_data)
-    # print(file_data$tileName)
+  # Read the label file
+  labels <- read_delim(file, delim = " ", col_names = FALSE, show_col_types = FALSE)
+  
+  # Check that the label file is not empty
+  if (nrow(labels) == 0) {
+    stop("The label file is empty")
+  }
+  
+  # Create a data frame for the current file's data
+  file_data <- data.frame(
+    tileName = rep(tile_name, nrow(labels)),
+    label = labels$X1,
+    box_center_w = labels$X2,
+    box_center_h = labels$X3,
+    box_width = labels$X4,
+    box_height = labels$X5,
+    confidence = labels$X6
+  )
+  
+  return(file_data)
+  # print(file_data$tileName)
 }
 
-# process_label_file(label_files[1:10])
 # Process label files in parallel and combine results
 combined_data <- future_apply(label_files, FUN = process_label_file, MARGIN = 1, 
-                     future.seed = TRUE, future.chunk.size = 1e3) %>%
-                     bind_rows()
+                              future.seed = TRUE, future.chunk.size = 1e3) %>%
+  bind_rows()
 
 plan(sequential)
 
@@ -90,7 +125,7 @@ write_csv(combined_data, paste0(label_path,"/combined_predictions.csv"))
 df <- combined_data
 
 # start here if you already made the combined_predictions df
-df <- read.csv(paste0(label_path,"/combined_predictions.csv"))
+# df <- read.csv(paste0(label_path,"/combined_predictions.csv"))
 
 # add the img_file column for later use
 df$img_file<-df$tileName
@@ -102,8 +137,7 @@ df$img_height <- (256)
 # note that the way we are running YOLO for ADPE, the category is always 0, so would need to modify
 # the following depending on which model output you are running this on
 df$int_category <- 0
-#df$label <- "ADPE_sit"
-df$label <- "ADPE_stand"
+df$label <- label
 
 # add some new columns which are used by the duplicate detector:
 df$lt_dupe_poss <- NA
@@ -122,7 +156,7 @@ df$bottom_dupe <- NA
 
 # Function to extract row, and column values from img_file
 extract_info <- function(img_file) {
-  pattern <- "(croz)(_)(\\d{8})(_)(\\d{1,3})(_)(\\d{1,3})(\\.jpg)"
+  pattern <- paste0("(", colony, ")(_)(\\d{8})(_)(\\d{1,3})(_)(\\d{1,3})(\\.jpg)")
   matches <- regexec(pattern, img_file, perl=TRUE)
   if (matches[[1]][1] != -1) {
     #plot_name <- substring(img_file, matches[[1]][2], matches[[1]][3]-1)
@@ -148,25 +182,25 @@ registerDoParallel(cl)
 process_row <- function(img_file) {
   info <- extract_info(img_file)
   if (!is.na(info$col)) {
-    bottom_tile <- paste0("croz_20191202_", info$col, "_", info$row + 1, ".jpg")
+    bottom_tile <- paste0(ortho_prefix,"_", info$col, "_", info$row + 1, ".jpg")
   } else {
     bottom_tile <- NA
   }
   
   if (!is.na(info$col)) {
-    top_tile <- paste0("croz_20191202_", info$col, "_", info$row - 1, ".jpg")
+    top_tile <- paste0(ortho_prefix,"_", info$col, "_", info$row - 1, ".jpg")
   } else {
     top_tile <- NA
   }
   
   if (!is.na(info$row)) {
-    left_tile <- paste0("croz_20191202_", info$col - 1, "_", info$row, ".jpg")
+    left_tile <- paste0(ortho_prefix,"_", info$col - 1, "_", info$row, ".jpg")
   } else {
     left_tile <- NA
   }
   
   if (!is.na(info$row)) {
-    right_tile <- paste0("croz_20191202_", info$col + 1, "_", info$row, ".jpg")
+    right_tile <- paste0(ortho_prefix,"_", info$col + 1, "_", info$row, ".jpg")
   } else {
     right_tile <- NA
   }
@@ -195,9 +229,12 @@ df <- cbind(df, result_df)
 ## get rid of weird labels
 # Calculate box area in square pixels
 df$box_area_pixels <- df$box_height * 256 * df$box_width * 512
-# Filter out rows with box_area_pixels > 1225 (35 x 35 pixels)
-df <- df[df$box_area_pixels <= 1225, ]
 
+summary(df$box_area_pixels)
+# Filter out rows with box_area_pixels > 1225 (35 x 35 pixels) for Crozier 2019
+# df <- df[df$box_area_pixels <= 1225, ]
+# Filter out rows with box_area_pixels > 1500 for Royds 2019
+df <- df[df$box_area_pixels <= 1500, ]
 
 # Now need to determine if there are any box centers at the edges of any of the tiles
 # Create new columns and mark potentially duplicated labels
@@ -293,8 +330,8 @@ for (i in 1:nrow(df)) {
         df$dupe_id[df$img_file == top_tile & abs(df$box_center_w-bcw)<0.07 & abs(df$box_center_h-bch) > 0.85] <- dc
         # print(df$dupe_id[i])
         # it is going to replace dupe_id with the most recent dupe indicator - but either way it will be marked as a duplicate label?
-        }
       }
+    }
   }
 }
 
@@ -309,21 +346,18 @@ print(total_nests-dupe_nests)
 #write the full csv in case it is useful - or if you need to re-start from here:
 #note that it won't have geo_x and geo_y yet if this is the first time through
 #write_csv(df, "predict/2019/croz_20191202/adult_s2_best/all_nests_with_dupe_indicators_v7.csv")
-write_csv(df, "predict/2019/croz_20191202/adult_stand_s5_best/all_stand_with_dupe_indicators_v1.csv")
+write_csv(df, dupe_indicators_csv)
 
 # can start from here if you have already done above previously
 #df <- read_csv("predict/2019/croz_20191202/adult_s2_best/all_nests_with_dupe_indicators_v7.csv")
-df <- read_csv("predict/2019/croz_20191202/adult_stand_s5_best/all_stand_with_dupe_indicators_v1.csv")
-
-# Define crs if data are projected:
-crs <- st_crs("+proj=lcc +lat_1=-76.666667 +lat_2=-79.333333 +lat_0=-78.021171 +lon_0=169.333333 +x_0=500000 +y_0=300000 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+df <- read_csv(dupe_indicators_csv)
 
 ############################################
 ## add latitude and longitude to every label
 ############################################
 
 # read in the georeference info:
-grt <- read.csv("predict/2019/croz_20191202/croz_20191202_tilesGeorefTable_v2.csv")
+grt <- read.csv(georeftable)
 
 # df <- rename(df, tileName = img_file)
 df_backup <- df
@@ -332,34 +366,24 @@ df <- df_backup
 # Merge the dataframes
 df <- left_join(df, grt, by="tileName")
 
-# the values will depend on the pixel resolution of the original orthomosaic
-of <- r"(Y:\PenguinCounting\croz_20191202\croz_20191202.tif)"
+
 # image_url <- "https://deju-penguinscience.s3.us-east-2.amazonaws.com/PenguinCounting/croz_20191202/croz_20191202.tif"
 # of <- terra::rast(image_url)
 #note that this relied on mapping s3:deju-penguinscience as Y (used TNT drive for that)
 #otherwise would need to download the ortho 
 
-ortho <-
-    terra::rast(of)
-pixW <- xres(ortho)
-pixH <- yres(ortho)
+df$label_geo_x <- df$geo_x + (df$box_center_w*512*pixW)
+df$label_geo_y <- df$geo_y - (df$box_center_h*256*pixH)
 
-# for Croz_20191202:
-#pixW <- 0.0159296
-#pixH <- 0.0159385
-
-df$geo_x <- df$lon + (df$box_center_w*512*pixW)
-df$geo_y <- df$lat - (df$box_center_h*256*pixH)
-
-write_csv(df, "predict/2019/croz_20191202/adult_stand_s5_best/all_stand_with_dupe_indicators_v1.csv")
+write_csv(df, dupe_indicators_csv)
 ############################################################
 
 # Create an sf object from the CSV data
-sf_obj <- st_as_sf(df, coords = c("geo_x", "geo_y"), crs = crs)
+sf_obj <- st_as_sf(df, coords = c("label_geo_x", "label_geo_y"), crs = crs)
 
 # Write the sf object to a shapefile
 #st_write(sf_obj, "predict/2019/croz_20191202/adult_s2_best/all_nests_with_dupe_indicators_v7.shp", append=FALSE)
-st_write(sf_obj, "predict/2019/croz_20191202/adult_stand_s5_best/all_stand_with_dupe_indicators_v1.shp", append=FALSE)
+st_write(sf_obj, dupe_indicators_shp, append=FALSE)
 
 
 # make a subset that retains all the non-duplicated labels and the duplicated labels with the highest
@@ -378,29 +402,29 @@ df <- de_duplicated_nests_df
 # write it if you want
 #write_csv(df, r"(Z:\Informatics\S031\analyses\RI_penguin_count_UAV\predict\2019\croz_20191202\adult_s2_best\combined_predictions.csv)")
 #write_csv(df, "predict/2019/croz_20191202/adult_s2_best/de_duplicated_nests_v7.csv")
-write_csv(df, "predict/2019/croz_20191202/adult_stand_s5_best/de_duplicated_stand_v1.csv")
+write_csv(df, de_duplicated_csv)
 
+#df <- read.csv(de_duplicated_csv)
 # number of nests
-total_nests<-nrow(subset(df, confidence>0.075))
+total_nests<-nrow(subset(df, confidence>0.05))
+# 2312 for Royds 2019-20 
 
 #Make a smaller version with only the fileds you need
 #subset_df <- filter(df, grepl("twain", tileName))
 #subset_df <- df
-subset_df <- df[, c("tileName", "geo_x", "geo_y", "confidence", "dupe_id", "int_category")]
+subset_df <- df[, c("tileName", "label_geo_x", "label_geo_y", "confidence", "dupe_id", "int_category")]
 
 #write_csv(subset_df, "predict/2019/croz_20191202/adult_s2_best/de_duplicated_nests_smaller_v7.csv")
-write_csv(subset_df, "predict/2019/croz_20191202/adult_stand_s5_best/de_duplicated_stand_smaller_v1.csv")
+write_csv(subset_df, de_duplicated_smaller_csv)
 
 ## write the subset as a shapefile:
 # Create an sf object from the CSV data
-sf_obj <- st_as_sf(subset_df, coords = c("geo_x", "geo_y"), crs = crs)
+sf_obj <- st_as_sf(subset_df, coords = c("label_geo_x", "label_geo_y"), crs = crs)
 #sf_obj <- st_as_sf(df, coords = c("geo_x", "geo_y"), crs = crs)
 
 # Write the sf object to a shapefile
 #st_write(sf_obj, "predict/2019/croz_20191202/adult_s2_best/de_duplicated_nests_smaller_v7.shp", append=FALSE)
 #st_write(sf_obj, "predict/2019/croz_20191202/adult_s2_best/de_duplicated_nests_smaller_v7.shp", append=FALSE)
-st_write(sf_obj, "predict/2019/croz_20191202/adult_stand_s5_best/de_duplicated_stand_smaller_v1.shp", append=FALSE)
+st_write(sf_obj, de_duplicated_smaller_shp, append=FALSE)
 
-
-#sum(df$int_category == 0)
-
+nrows(df[df$confi])
