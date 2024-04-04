@@ -1,11 +1,1 @@
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-.html
-.DS_Store
-project.xcworkspace/
-xcuserdata/
-*yolov5/.*
-__pycache__
-manual_counts/
+**/counting_penguins/
