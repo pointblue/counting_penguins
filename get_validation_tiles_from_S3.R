@@ -37,7 +37,7 @@ bucket_name <- "deju-penguinscience"
 query <- "
 SELECT DISTINCT SurveyId, TilesLoc
 FROM SurveyImagery
-WHERE (SurveyId = 'croz_adpe_2018-11-29')
+WHERE (SurveyId = 'bird_adpe_2021-12-02')
 AND SurveyId like('%adpe%')
 AND TilesLoc > ''
 "

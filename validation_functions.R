@@ -14,7 +14,7 @@
 # Functions ---------------------------------------------------------------
 
 
-create_validation_shapefiles <- function(db_name, colony, date) {
+create_validation_shapefiles <- function(db_name, colony, species, date) {
   # Required Libraries ------------------------------------------------------
   require(sf)
   require(tidyverse)
@@ -30,7 +30,7 @@ create_validation_shapefiles <- function(db_name, colony, date) {
   
   # Get survey ID
   survey <- survey_ls %>%
-    filter(str_detect(SurveyId, glue::glue("{colony}_.*_{date}"))) %>%
+    filter(str_detect(SurveyId, glue::glue("{colony}_{species}.*_{date}"))) %>%
     pull(SurveyId)
   
   valid_dir <- paste("data", survey, "validate", sep = "/")
@@ -110,9 +110,9 @@ create_validation_shapefiles <- function(db_name, colony, date) {
   valid_labs_coords <-
     valid_labs %>%
     mutate(tileName = gsub("\\.jpg$", "", tileName)) %>%
-    inner_join(georef, . , by = "tileName") %>%
+    inner_join(georef, . , by = "tileName") %>% 
     mutate(ortho_name = sub("^(.*?)_\\d+_\\d+$", "\\1", tileName)) %>%
-    left_join(ortho_info) %>%
+    left_join(ortho_info) %>% 
     mutate(
       left_geo = easting + bbox_x * xres,
       top_geo = northing - bbox_y * yres,
@@ -174,12 +174,13 @@ create_validation_shapefiles <- function(db_name, colony, date) {
   
   pred_labs_dir <-
     paste(predict_dir, "counts", model, "labels", sep = "/")
-  
+  labnames <-
+    unique(paste(sub("\\.jpg$", "", valid_labs$tileName)))
   # Table with prediction labels
   pred_labs <-
     list.files(pred_labs_dir,
-               pattern = paste(sub("\\.jpg$", "", valid_labs$tileName), collapse = "|"),
-               full.names = TRUE) %>%
+               pattern = paste(labnames, collapse = "|"),
+               full.names = TRUE) %>% 
     map(.,
         ~ read_delim(
           .x,
@@ -193,7 +194,7 @@ create_validation_shapefiles <- function(db_name, colony, date) {
           ),
           col_types = cols(.default = "n")
         ) %>%
-          mutate(file_name = basename(.x))) %>%
+          mutate(file_name = basename(.x))) %>% 
     bind_rows() %>%
     mutate(ortho_name = sub("^(.*?)_\\d+_\\d+\\.txt$", "\\1", file_name))
   
@@ -269,7 +270,7 @@ create_validation_shapefiles <- function(db_name, colony, date) {
 
 
 
-compute_threshold_results <- function(db_name, colony, date) {
+compute_threshold_results <- function(db_name, colony, species, date) {
   # Required Libraries ------------------------------------------------------
   require(sf)
   require(tidyverse)
@@ -282,7 +283,7 @@ compute_threshold_results <- function(db_name, colony, date) {
   # Get survey ID
   survey_ls <- dbGetQuery(db, "SELECT * FROM Surveys")
   survey <- survey_ls %>%
-    filter(str_detect(SurveyId, glue::glue("{colony}_.*_{date}"))) %>%
+    filter(str_detect(SurveyId, glue::glue("{colony}_{species}.*_{date}"))) %>%
     pull(SurveyId)
   
   # Build paths
@@ -425,6 +426,9 @@ compute_threshold_results <- function(db_name, colony, date) {
     round(results_summ$precision[which.max(results_summ$FScore)], 4)
   Recall <-
     round(results_summ$recall[which.max(results_summ$FScore)], 4)
+  CorrFact <-
+    round(results_summ$correction_fact[which.max(results_summ$FScore)], 4)
+    
   
   # Plot precision/recall curve
   recall_precision_plot <-
@@ -506,7 +510,11 @@ compute_threshold_results <- function(db_name, colony, date) {
   # Write values to human labels table in db
   query <- glue::glue("
     UPDATE ModelPredictions
-    SET F1Score = {F1Score}, Precision = {Precision}, Recall = {Recall}, Threshold = {selected_thresh}
+    SET F1Score = {F1Score}, 
+    Precision = {Precision}, 
+    Recall = {Recall}, 
+    Threshold = {selected_thresh},
+    CorrectionFact = {CorrFact}
     WHERE SurveyId = '{survey}'
   ")
   dbExecute(db, query)
@@ -518,5 +526,6 @@ compute_threshold_results <- function(db_name, colony, date) {
   message("F1Score = ", F1Score)
   message("Precision = ", Precision)
   message("Recall = ", Recall)
+  message("Correction Factor = ", CorrFact)
 
 }
