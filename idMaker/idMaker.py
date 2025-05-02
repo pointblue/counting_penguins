@@ -2,33 +2,6 @@
 ### and assigns each penguin a unique ID. It then re-IDs each penguin based on it's location 
 ### being close (some radius distance) to another detection in a different tile
 
-## The logic is as follows:
-## A function first retrieves the original orthomosaic and captures the extent and ncol/nrow data
-## With these, it calculates how much distance in latitude and longitude is covered by a pixel 
-
-## A second function takes as input a tile and queries the reference table to obtain 
-## its min(lat) and min(lon), and minimum absolute position(ie., position of lower left corner)
-
-## A third function takes all predictions in the tile and uses the information returned by the above
-## functions to database the absolute and georeferenced position of each detection, along with 
-## the probability of the detection. It also assigns a GUID to the detection
-
-## A fourth function compares the predictions in this tile to those of an adjacent tile
-## First note that tiles are counted starting on the lower-left corner and moving right and down, 
-## as indicated in the tiling code:  
-##		cropped_img = img[yy:min(yy+self.ySize, height), xx:min(xx+self.xSize, width)]
-## So, we proceed from the top-left, moving right and then down.
-## This function compares the current tile to the adjacent (A) tilee:
-##		In that A tile we look for detections within the radius R of each detection in the current tile
-##		If a detection is found in A within the radius R of a detection in the current tile, 
-##		the current detection inherits the ID of the detection in the A tile
-## That is, this function loops through all detections in the current file and all detections in the A tile
-
-## A fifth function acts as a wrapper of the previous function:
-## It finds if there is an upper-left tile to the current tile and passes it to the above function
-## It then does the same for a top-adjacent tile, and then a left-adjacent tile
-
-
 #### First activate the environment. Go to the environments folder and then:
 source makeidenv/bin/activate
 
