@@ -13,14 +13,20 @@ import glob
 import imagecodecs
 import csv
 
-path_to_objTiler='/home/ubuntu/Workspace/counting_penguins/tiler/'
+# Full path to workspace directory contining counting_penguins repo,
+# and orthos and tiles subdirectories. Must end with a slash!
+
+workspace = '/Users/timmyd/Projects/PointBlue/'
+#workspace = '/home/ubuntu/Workspace/'
+
+path_to_objTiler = workspace + '/counting_penguins/tiler/'
 
 import sys
 sys.path.insert(0, path_to_objTiler)
 
-from Tiler_tiff import Tiler
+from Tiler_tiff_tim import Tiler
 
-tiler = Tiler(xSize=512, ySize=256, buffer=20, outDir="/home/ubuntu/Workspace/tiles/", outFileExt="jpg")
-for file in glob.glob("/home/ubuntu/Workspace/orthos/*.*"):
+tiler = Tiler(xSize=512, ySize=256, buffer=20, outDir=workspace + 'tiles/', outFileExt='jpg')
+for file in glob.glob(workspace + "orthos/*.*"):
     if "croz" in file:
         tiler.tile(file)

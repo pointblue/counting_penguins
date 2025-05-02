@@ -1,0 +1,342 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A38BC218293E713E00E5BD95 /* PenguinCounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A38BC216293E713E00E5BD95 /* PenguinCounter.cpp */; };
+		A38BC21B293EA88900E5BD95 /* SSUtilities.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A38BC219293EA88900E5BD95 /* SSUtilities.cpp */; };
+		A38D24D42947A1FF002446F4 /* libgdal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D32947A1FF002446F4 /* libgdal.a */; };
+		A38D24D62947A24B002446F4 /* libopencv_core.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D52947A24B002446F4 /* libopencv_core.a */; };
+		A38D24D82947A255002446F4 /* libopencv_imgcodecs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */; };
+		A3AF1A4D294ACC3F007BDCEA /* GImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */; };
+		A3AF1A4F294ACE26007BDCEA /* libtiff.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3AF1A4E294ACE26007BDCEA /* libtiff.a */; };
+		A3AF1A51294ACF48007BDCEA /* libjpeg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A3AF1A50294ACF48007BDCEA /* libjpeg.a */; };
+		A3D728C5293E70C7006B04F5 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A3D728C4293E70C7006B04F5 /* main.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A3D728BF293E70C7006B04F5 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A38BC216293E713E00E5BD95 /* PenguinCounter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PenguinCounter.cpp; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
+		A38BC217293E713E00E5BD95 /* PenguinCounter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = PenguinCounter.hpp; sourceTree = SOURCE_ROOT; };
+		A38BC219293EA88900E5BD95 /* SSUtilities.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SSUtilities.cpp; sourceTree = "<group>"; };
+		A38BC21A293EA88900E5BD95 /* SSUtilities.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = SSUtilities.hpp; sourceTree = "<group>"; };
+		A38D24CA29479CCB002446F4 /* PenguinCounter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PenguinCounter.entitlements; sourceTree = "<group>"; };
+		A38D24D32947A1FF002446F4 /* libgdal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libgdal.a; path = ../../../../../../opt/homebrew/lib/libgdal.a; sourceTree = "<group>"; };
+		A38D24D52947A24B002446F4 /* libopencv_core.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libopencv_core.a; path = ../../../../../../opt/homebrew/lib/libopencv_core.a; sourceTree = "<group>"; };
+		A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libopencv_imgcodecs.a; path = ../../../../../../opt/homebrew/lib/libopencv_imgcodecs.a; sourceTree = "<group>"; };
+		A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GImage.cpp; sourceTree = "<group>"; };
+		A3AF1A4C294ACC3F007BDCEA /* GImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GImage.h; sourceTree = "<group>"; };
+		A3AF1A4E294ACE26007BDCEA /* libtiff.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtiff.a; path = ../../../../../../opt/homebrew/lib/libtiff.a; sourceTree = "<group>"; };
+		A3AF1A50294ACF48007BDCEA /* libjpeg.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libjpeg.a; path = ../../../../../../opt/homebrew/lib/libjpeg.a; sourceTree = "<group>"; };
+		A3D728C1293E70C7006B04F5 /* PenguinCounter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PenguinCounter; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3D728C4293E70C7006B04F5 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A3D728BE293E70C7006B04F5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A3AF1A4F294ACE26007BDCEA /* libtiff.a in Frameworks */,
+				A38D24D42947A1FF002446F4 /* libgdal.a in Frameworks */,
+				A38D24D82947A255002446F4 /* libopencv_imgcodecs.a in Frameworks */,
+				A3AF1A51294ACF48007BDCEA /* libjpeg.a in Frameworks */,
+				A38D24D62947A24B002446F4 /* libopencv_core.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A38D24CF2947A160002446F4 /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+				A38D24D32947A1FF002446F4 /* libgdal.a */,
+				A38D24D52947A24B002446F4 /* libopencv_core.a */,
+				A38D24D72947A255002446F4 /* libopencv_imgcodecs.a */,
+				A3AF1A4E294ACE26007BDCEA /* libtiff.a */,
+				A3AF1A50294ACF48007BDCEA /* libjpeg.a */,
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+		};
+		A3D728B8293E70C7006B04F5 = {
+			isa = PBXGroup;
+			children = (
+				A3D728C3293E70C7006B04F5 /* PenguinCounter */,
+				A3D728C2293E70C7006B04F5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A3D728C2293E70C7006B04F5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A3D728C1293E70C7006B04F5 /* PenguinCounter */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A3D728C3293E70C7006B04F5 /* PenguinCounter */ = {
+			isa = PBXGroup;
+			children = (
+				A38D24CA29479CCB002446F4 /* PenguinCounter.entitlements */,
+				A38BC219293EA88900E5BD95 /* SSUtilities.cpp */,
+				A38BC21A293EA88900E5BD95 /* SSUtilities.hpp */,
+				A38BC216293E713E00E5BD95 /* PenguinCounter.cpp */,
+				A38BC217293E713E00E5BD95 /* PenguinCounter.hpp */,
+				A3AF1A4B294ACC3F007BDCEA /* GImage.cpp */,
+				A3AF1A4C294ACC3F007BDCEA /* GImage.h */,
+				A3D728C4293E70C7006B04F5 /* main.cpp */,
+				A38D24CF2947A160002446F4 /* Libraries */,
+			);
+			name = PenguinCounter;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A3D728C0293E70C7006B04F5 /* PenguinCounter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A3D728C8293E70C7006B04F5 /* Build configuration list for PBXNativeTarget "PenguinCounter" */;
+			buildPhases = (
+				A3D728BD293E70C7006B04F5 /* Sources */,
+				A3D728BE293E70C7006B04F5 /* Frameworks */,
+				A3D728BF293E70C7006B04F5 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PenguinCounter;
+			productName = PenguinCounter;
+			productReference = A3D728C1293E70C7006B04F5 /* PenguinCounter */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A3D728B9293E70C7006B04F5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1410;
+				TargetAttributes = {
+					A3D728C0293E70C7006B04F5 = {
+						CreatedOnToolsVersion = 14.1;
+					};
+				};
+			};
+			buildConfigurationList = A3D728BC293E70C7006B04F5 /* Build configuration list for PBXProject "PenguinCounter" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A3D728B8293E70C7006B04F5;
+			productRefGroup = A3D728C2293E70C7006B04F5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A3D728C0293E70C7006B04F5 /* PenguinCounter */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A3D728BD293E70C7006B04F5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A38BC21B293EA88900E5BD95 /* SSUtilities.cpp in Sources */,
+				A3AF1A4D294ACC3F007BDCEA /* GImage.cpp in Sources */,
+				A3D728C5293E70C7006B04F5 /* main.cpp in Sources */,
+				A38BC218293E713E00E5BD95 /* PenguinCounter.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A3D728C6293E70C7006B04F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.6;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		A3D728C7293E70C7006B04F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.6;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		A3D728C9293E70C7006B04F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PenguinCounter.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3VXR2SZ857;
+				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = (
+					/opt/homebrew/include,
+					/opt/homebrew/include/opencv4,
+				);
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		A3D728CA293E70C7006B04F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PenguinCounter.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3VXR2SZ857;
+				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = (
+					/opt/homebrew/include,
+					/opt/homebrew/include/opencv4,
+				);
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A3D728BC293E70C7006B04F5 /* Build configuration list for PBXProject "PenguinCounter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A3D728C6293E70C7006B04F5 /* Debug */,
+				A3D728C7293E70C7006B04F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A3D728C8293E70C7006B04F5 /* Build configuration list for PBXNativeTarget "PenguinCounter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A3D728C9293E70C7006B04F5 /* Debug */,
+				A3D728CA293E70C7006B04F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A3D728B9293E70C7006B04F5 /* Project object */;
+}

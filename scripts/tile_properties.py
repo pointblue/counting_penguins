@@ -1,7 +1,10 @@
 '''
 Pulls brightness, contrast, perhaps other data from an S3 source
 Grant Ballard 9/11/2022 (gballard@pointblue.org)
+<<<<<<< HEAD
+=======
 Tim DeBenedictis 10/21/2022 (timd@southernstars.com)
+>>>>>>> 6a40ca1b74de708fb02ce4dcc62fb087e36bb3d5
 Based on info from:
 https://stackoverflow.com/questions/3490727/what-are-some-methods-to-analyze-image-brightness-using-pythonfrom PIL import Image
 https://en.wikipedia.org/wiki/Contrast_(vision)
@@ -48,6 +51,8 @@ def contrast2( im_file ):
    im = Image.open(im_file).convert('L')
    return round(np.std(im), 2)
 
+<<<<<<< HEAD
+=======
 #Function to return focus/sharpness measure (f)
 # see https://sites.google.com/view/cvia/focus-measure
 # and https://www.mathworks.com/matlabcentral/fileexchange/27314-focus-measure
@@ -72,6 +77,7 @@ def keys(bucket_name, prefix='/', delimiter='/', start_after=''):
 #Main Program below:
 
 #create csv to store image data
+
 header = ['tile', 'brightness', 'contrast_Michelson', 'contrast_RMS', 'min', 'max', 'mean', 'stdev', 'sharpness']
 
 with open('../tile_properties.csv', 'w', encoding='UTF8', newline='') as f:
