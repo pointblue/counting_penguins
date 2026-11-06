@@ -1,3 +1,15 @@
-**/counting_penguins/
-**/analysis_code/
-**/file_processing/
+# Databases (the published database is data/UAVSurveys.sql)
+data/*.db
+
+# Model weights (distributed with the release and archived separately)
+models/*.pt
+*.pt
+
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# Python caches
+__pycache__/
+*.pyc
