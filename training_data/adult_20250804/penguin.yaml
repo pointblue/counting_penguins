@@ -1,0 +1,19 @@
+# --------------------------------------------------------------------
+# penguin.yaml
+# Ultralytics YOLO dataset definition for the Adélie penguin training
+# data (adult_20250804). Place this file in the training data directory,
+# alongside the train/, val/, and test/ folders created by
+# yolo_file_organizer.R.
+#
+# No 'path' entry is given, so the dataset root is the directory that
+# contains this file and the paths below are relative to it. This keeps
+# the file valid wherever the training data are stored.
+# --------------------------------------------------------------------
+
+train: train/images
+val: val/images
+test: test/images
+
+# Class names (zero-indexed)
+names:
+  0: sitting_adelie
