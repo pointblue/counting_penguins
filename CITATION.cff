@@ -3,6 +3,8 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "Counting Penguins: pipeline code"
 version: "3.0"
+doi: "10.5281/zenodo.24025180"
+date-released: "2026-11-06"
 abstract: >-
   Code for an automated pipeline that estimates the size of Adélie penguin
   breeding colonies from uncrewed aerial vehicle (UAV) imagery, as applied to
