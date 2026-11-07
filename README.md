@@ -8,7 +8,7 @@ Developed by Point Blue Conservation Science.
 
 If you use this code, please cite:
 
-Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, M. Meredyth-Young, E. Robinson, M. Schwager, K. Shah, and G. Ballard. 2026. Counting Penguins: pipeline code (version 1.0). Zenodo. https://doi.org/[Zenodo DOI]
+Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, M. Meredyth-Young, E. Robinson, M. Schwager, K. Shah, and G. Ballard. 2026. Counting Penguins: pipeline code (version 2.0). Zenodo. https://doi.org/[Zenodo DOI]
 
 The methods are described in:
 
@@ -121,7 +121,7 @@ To evaluate the trained model on the held-out test set, which was not used for t
 python code/evaluate_test_set.py --weights models/ADPE_20250804_adult_sit_best.pt
 ```
 
-The trained model used for the published counts, `ADPE_20250804_adult_sit_best.pt` (MD5 056487524e3875e7c44105f5196224cd), is attached to the version 1.0 release of this repository and is available from the data repository. Place it in `models/`. `training_runs/ADPE_20250804_adult_sit/` holds the training configuration (`args.yaml`) and per-epoch metrics (`results.csv`) for this model; file paths in `args.yaml` refer to the training machine.
+The trained model used for the published counts, `ADPE_20250804_adult_sit_best.pt` (MD5 056487524e3875e7c44105f5196224cd), is attached to the version 2.0 release of this repository and is available from the data repository. Place it in `models/`. `training_runs/ADPE_20250804_adult_sit/` holds the training configuration (`args.yaml`) and per-epoch metrics (`results.csv`) for this model; file paths in `args.yaml` refer to the training machine.
 
 ### Run inference
 

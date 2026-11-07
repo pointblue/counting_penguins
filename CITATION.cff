@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "Counting Penguins: pipeline code"
-version: "1.0"
+version: "2.0"
 abstract: >-
   Code for an automated pipeline that estimates the size of Adélie penguin
   breeding colonies from uncrewed aerial vehicle (UAV) imagery, as applied to
