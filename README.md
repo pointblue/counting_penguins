@@ -8,11 +8,11 @@ Developed by Point Blue Conservation Science.
 
 If you use this code, please cite:
 
-Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, M. Meredyth-Young, E. Robinson, M. Schwager, K. Shah, and G. Ballard. 2026. Counting Penguins: pipeline code (version 3.0). Zenodo. https://doi.org/10.5281/zenodo.24025180
+Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, E. Robinson, M. Schwager, K. Shah, and G. Ballard. 2026. Counting Penguins: pipeline code (version 3.0). Zenodo. https://doi.org/10.5281/zenodo.24025180
 
 The methods are described in:
 
-Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, M. Meredyth-Young, E. Robinson, M. Schwager, K. Shah, and G. Ballard. Counting Penguins: a multi-UAV and deep learning pipeline for georeferenced whole-colony Adélie penguin breeding population counts. Submitted to Ecological Informatics.
+Schmidt, A. E., D. Anderson, C. Burnham, M. Elrod, A. B. Fleishman, D. J. Klein, M. McKown, E. Robinson, M. Schwager, K. Shah, and G. Ballard. Counting Penguins: a multi-UAV and deep learning pipeline for georeferenced whole-colony Adélie penguin breeding population counts. Submitted to Ecological Informatics.
 
 Data (orthomosaics, tiles, training data, and the trained model): https://deju-penguinscience.s3.us-east-2.amazonaws.com/PenguinCounting/index.html
 
