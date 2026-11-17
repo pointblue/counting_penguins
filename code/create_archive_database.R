@@ -36,8 +36,6 @@
 #
 # Requires SQLite 3.35 or later (for ALTER TABLE ... DROP COLUMN), which
 # is included with current versions of RSQLite. Run from the project root.
-#
-# Developed with assistance from Claude (Anthropic); reviewed and tested by the authors.
 # --------------------------------------------------------------------
 
 library(DBI)
@@ -49,7 +47,7 @@ library(RSQLite)
 db_name    <- "data/UAVSurveys.db"
 archive_db <- "data/UAVSurveys_archive.db"
 
-build_archive <- FALSE
+build_archive <- TRUE
 
 # Colonies and model included in the archive. Colony codes are matched
 # without regard to case (LocationId values are upper case, e.g. "CROZ";
@@ -166,7 +164,7 @@ cat("\nFull inventory written to data/database_inventory.csv\n")
 if (!build_archive) {
   cat("\nSet build_archive <- TRUE to build", archive_db, "\n")
 } else {
-
+  
   # ------------------------------------------------------------------
   # Pass 2: build the archive
   # ------------------------------------------------------------------
@@ -174,7 +172,7 @@ if (!build_archive) {
   if (length(missing) > 0) stop("Tables not found: ", paste(missing, collapse = ", "))
   not_kept <- setdiff(c(names(row_filters), prune_lookups), tables_keep)
   if (length(not_kept) > 0) stop("Filtered tables not in tables_keep: ", paste(not_kept, collapse = ", "))
-
+  
   # Every table referenced by a kept table must also be kept
   refs <- inv[inv$table %in% tables_keep & nzchar(inv$references), ]
   needed <- setdiff(unique(sub("\\(.*", "", refs$references)), tables_keep)
@@ -182,7 +180,7 @@ if (!build_archive) {
     stop("Kept tables have foreign keys to tables not in tables_keep: ",
          paste(needed, collapse = ", "), ". Add them or drop the referencing tables.")
   }
-
+  
   # Columns to drop
   drops <- inv[inv$table %in% tables_keep &
                  (inv$name_flag |
@@ -196,7 +194,7 @@ if (!build_archive) {
          paste(with(drops[drops$primary_key | nzchar(drops$references), ],
                     paste0(table, ".", column)), collapse = ", "))
   }
-
+  
   if (file.exists(archive_db)) file.remove(archive_db)
   file.copy(db_name, archive_db)
   con <- dbConnect(SQLite(), archive_db)
@@ -204,7 +202,7 @@ if (!build_archive) {
     dbDisconnect(con); stop("SQLite 3.35 or later is required; update RSQLite.")
   }
   dbExecute(con, "PRAGMA foreign_keys = OFF")
-
+  
   # Existing violations among kept tables would be removed silently by the
   # foreign-key cascade below, so they must be fixed in the working
   # database first
@@ -225,7 +223,7 @@ if (!build_archive) {
          "; models: ", paste(models, collapse = ", "))
   }
   before <- row_counts(con, tables_keep)
-
+  
   # Views, triggers, and tables not kept
   for (i in seq_len(nrow(other))) {
     dbExecute(con, sprintf('DROP %s IF EXISTS "%s"', toupper(other$type[i]), other$name[i]))
@@ -234,7 +232,7 @@ if (!build_archive) {
     dbExecute(con, sprintf('DROP TABLE "%s"', t))
     message("Dropped table ", t)
   }
-
+  
   # Columns (indexes that use a dropped column are dropped first)
   for (i in seq_len(nrow(drops))) {
     t <- drops$table[i]; c <- drops$column[i]
@@ -248,12 +246,12 @@ if (!build_archive) {
     dbExecute(con, sprintf('ALTER TABLE "%s" DROP COLUMN "%s"', t, c))
     message("Dropped column ", t, ".", c)
   }
-
+  
   # Row filters
   for (t in names(row_filters)) {
     dbExecute(con, sprintf('DELETE FROM "%s" WHERE NOT (%s)', t, row_filters[[t]]))
   }
-
+  
   # Remove rows that refer to removed rows, until none remain
   fks <- foreign_keys(con, tables_keep)
   repeat {
@@ -267,7 +265,7 @@ if (!build_archive) {
     }
     if (removed == 0) break
   }
-
+  
   # Lookup rows no longer referred to by any kept row
   repeat {
     removed <- 0
@@ -283,23 +281,23 @@ if (!build_archive) {
     }
     if (removed == 0) break
   }
-
+  
   after <- row_counts(con, tables_keep)
   fk_problems <- dbGetQuery(con, "PRAGMA foreign_key_check")
   dbExecute(con, "VACUUM")
   final <- inventory(con)
   dbDisconnect(con)
-
+  
   cat("\nRows kept:\n")
   print(data.frame(table = tables_keep, before = before, after = after,
                    removed = before - after), row.names = FALSE)
-
+  
   if (nrow(fk_problems) > 0) {
     print(fk_problems)
     stop("Foreign key violations in the archive (listed above); it should not be published as is.")
   }
   message("Foreign key check: no violations")
-
+  
   still_flagged <- final[final$path_like > 0, c("table", "column", "path_like")]
   if (nrow(still_flagged) > 0) {
     warning("Columns in the archive still contain path-like values:\n",

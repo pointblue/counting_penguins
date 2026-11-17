@@ -63,7 +63,7 @@ table_rows <- function(con, table, model_name, locations_keep = NULL) {
       SELECT cc.* FROM CalibratedCounts cc
       WHERE cc.PredictId IN
         (SELECT PredictId FROM ModelPredictions WHERE ModelName = ?)",
-      params = list(model_name))
+               params = list(model_name))
   } else {
     dbGetQuery(con, sprintf('SELECT * FROM "%s"', table))
   }
@@ -101,7 +101,7 @@ export_sql <- function(db_name, sql_file, tables, model_name, locations_keep = N
   }
   missing <- setdiff(tables, dbListTables(con))
   if (length(missing) > 0) stop("Tables not found: ", paste(missing, collapse = ", "))
-
+  
   # Selected locations must exist, and every exported survey must be at one
   if (!is.null(locations_keep) && "Locations" %in% tables) {
     ids <- dbGetQuery(con, "SELECT LocationId FROM Locations")$LocationId
@@ -122,7 +122,7 @@ export_sql <- function(db_name, sql_file, tables, model_name, locations_keep = N
       }
     }
   }
-
+  
   out <- file(sql_file, open = "w", encoding = "UTF-8")
   on.exit(close(out), add = TRUE)
   writeLines(c(sprintf("-- Tables exported from %s on %s", basename(db_name),
@@ -133,7 +133,7 @@ export_sql <- function(db_name, sql_file, tables, model_name, locations_keep = N
                if (!is.null(locations_keep))
                  sprintf("-- Locations limited to %s", paste(locations_keep, collapse = ", ")),
                "PRAGMA foreign_keys = OFF;", "BEGIN TRANSACTION;"), out)
-
+  
   for (t in tables) {
     def <- dbGetQuery(con, "SELECT sql FROM sqlite_master
                             WHERE type = 'table' AND name = ?", params = list(t))$sql

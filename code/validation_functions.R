@@ -129,7 +129,9 @@ read_georef_s3 <- function(bucket, base_prefix, survey_folder) {
   }
   map_dfr(keys, ~ aws.s3::s3read_using(
     FUN = read_csv, object = .x, bucket = bucket,
-    show_col_types = FALSE)) |>
+    show_col_types = FALSE) |>
+      # Tables from an earlier tiler version spell this column "northng"
+      rename(any_of(c(northing = "northng")))) |>
     mutate(tileName = standardize_tile_name(tileName))
 }
 
@@ -194,7 +196,7 @@ create_validation_layers <- function(db_name, colony, species, date,
   valid_dir <- file.path("data", survey, "validate")
   label_dir <- file.path("data", survey, "predict", "counts", model_name,
                          "labels")
-
+  
   # Reference labels and the set of validation tiles
   valid_labs <- read_makesense_csv(valid_dir)
   labeled_tiles <- unique(valid_labs$tileName)
@@ -222,7 +224,7 @@ create_validation_layers <- function(db_name, colony, species, date,
   message(survey, ": ", length(valid_tiles), " validation tiles (",
           length(valid_tiles) - length(labeled_tiles),
           " with no reference labels), ", nrow(valid_labs), " reference boxes")
-
+  
   # Validation tiles should not have been used to train the model
   if (!is.null(training_tiles)) {
     reused <- intersect(valid_tiles, standardize_tile_name(training_tiles))
@@ -231,7 +233,7 @@ create_validation_layers <- function(db_name, colony, species, date,
               "e.g.: ", paste(head(reused, 3), collapse = ", "), call. = FALSE)
     }
   }
-
+  
   # Tile positions and orthomosaic metadata
   georef <- read_georef_s3(bucket, base_prefix, survey_folder) |>
     filter(tileName %in% valid_tiles)
@@ -244,11 +246,17 @@ create_validation_layers <- function(db_name, colony, species, date,
                         get_ortho_meta_s3, bucket = bucket,
                         base_prefix = base_prefix,
                         survey_folder = survey_folder)
-  if (n_distinct(ortho_info$crs_wkt) > 1) {
-    stop("Orthomosaics for this survey use more than one CRS.")
+  # Compare the coordinate reference systems themselves: the same CRS can
+  # be described by different WKT text in orthomosaics written by
+  # different software versions
+  crs_list <- lapply(unique(ortho_info$crs_wkt), st_crs)
+  if (!all(vapply(crs_list, function(x) x == crs_list[[1]], logical(1)))) {
+    stop("Orthomosaics for this survey use more than one CRS: ",
+         paste(unique(vapply(crs_list, function(x) x$Name, character(1))),
+               collapse = "; "))
   }
-  the_crs <- st_crs(ortho_info$crs_wkt[1])
-
+  the_crs <- crs_list[[1]]
+  
   # Tile extents; edge tiles are truncated at the orthomosaic boundary
   tiles <- georef |>
     mutate(ortho_name = tile_ortho_name(tileName)) |>
@@ -258,7 +266,7 @@ create_validation_layers <- function(db_name, colony, species, date,
            labeled = tileName %in% labeled_tiles)
   tile_cols <- c("tileName", "easting", "northing", "xres", "yres",
                  "tile_w", "tile_h")
-
+  
   # Reference boxes: pixel offsets from the tile's upper-left corner
   valid_boxes <- valid_labs |>
     inner_join(tiles[, tile_cols], by = "tileName") |>
@@ -266,7 +274,7 @@ create_validation_layers <- function(db_name, colony, species, date,
            xmax = xmin + bbox_width * xres,
            ymax = northing - bbox_y * yres,
            ymin = ymax - bbox_height * yres)
-
+  
   # Detections: normalized centers and sizes, scaled by each tile's
   # actual dimensions
   pred_boxes <- read_yolo_labels(label_dir, valid_tiles) |>
@@ -278,14 +286,17 @@ create_validation_layers <- function(db_name, colony, species, date,
            xmin = cx - half_w, xmax = cx + half_w,
            ymin = cy - half_h, ymax = cy + half_h) |>
     select(-cx, -cy, -half_w, -half_h)
-
+  
   tile_boxes <- tiles |>
     mutate(xmin = easting, xmax = easting + tile_w * xres,
            ymax = northing, ymin = northing - tile_h * yres)
-
+  
   # Write a GeoPackage (no 10-character field name limit, one file)
   gpkg <- file.path(valid_dir, paste0(survey, "_validation.gpkg"))
-  if (file.exists(gpkg)) file.remove(gpkg)
+  if (file.exists(gpkg) && !file.remove(gpkg)) {
+    stop("Could not replace ", gpkg,
+         "; it may be open in another program (e.g., QGIS).")
+  }
   st_write(boxes_to_sf(tile_boxes, the_crs), gpkg, layer = "tiles",
            quiet = TRUE)
   st_write(boxes_to_sf(valid_boxes, the_crs), gpkg, layer = "validation",
@@ -307,9 +318,9 @@ pair_iou <- function(preds, valids, min_iou) {
   inner_join(p, v, by = "tileName", suffix = c("_p", "_v"),
              relationship = "many-to-many") |>
     mutate(inter = pmax(0, pmin(xmax_p, xmax_v) - pmax(xmin_p, xmin_v)) *
-                   pmax(0, pmin(ymax_p, ymax_v) - pmax(ymin_p, ymin_v)),
+             pmax(0, pmin(ymax_p, ymax_v) - pmax(ymin_p, ymin_v)),
            union = (xmax_p - xmin_p) * (ymax_p - ymin_p) +
-                   (xmax_v - xmin_v) * (ymax_v - ymin_v) - inter,
+             (xmax_v - xmin_v) * (ymax_v - ymin_v) - inter,
            iou = ifelse(union > 0, inter / union, 0)) |>
     filter(iou >= min_iou) |>
     select(tileName, PredictId, ValidId, conf, iou)
@@ -353,10 +364,10 @@ compute_threshold_results <- function(db_name, colony, species, date,
   survey <- get_survey_id(db, colony, species, date)
   valid_dir <- file.path("data", survey, "validate")
   gpkg <- file.path(valid_dir, paste0(survey, "_validation.gpkg"))
-
+  
   preds  <- st_drop_geometry(st_read(gpkg, layer = "predictions", quiet = TRUE))
   valids <- st_drop_geometry(st_read(gpkg, layer = "validation", quiet = TRUE))
-
+  
   thresholds <- round(seq(min_thresh, 1, by = step), 6)
   results_summ <- threshold_counts(preds, valids, thresholds, min_iou) |>
     mutate(actual_positive = tp_all + fn_all,
@@ -368,7 +379,7 @@ compute_threshold_results <- function(db_name, colony, species, date,
            FScore = 2 * precision * recall / (precision + recall))
   write_csv(results_summ,
             file.path(valid_dir, paste0(survey, "_threshold_results.csv")))
-
+  
   # Threshold maximizing F1; ties go to the highest threshold, and all
   # reported values are taken at the selected threshold
   best_f <- max(results_summ$FScore, na.rm = TRUE)
@@ -379,7 +390,7 @@ compute_threshold_results <- function(db_name, colony, species, date,
     warning("Selected threshold equals the minimum evaluated (", min_thresh,
             "); the optimum may lie below it.", call. = FALSE)
   }
-
+  
   # Figures
   fig_dir <- file.path("figs", "validation")
   dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
@@ -396,16 +407,16 @@ compute_threshold_results <- function(db_name, colony, species, date,
          pr_plot, width = 8, height = 6, units = "in", dpi = 150)
   ggsave(file.path(fig_dir, paste0(survey, "_FScores.jpg")),
          f_plot, width = 8, height = 4, units = "in", dpi = 150)
-
+  
   # Record selected values in the ModelPredictions table
   if (update_db) {
     n <- dbExecute(db, "
       UPDATE ModelPredictions
       SET F1Score = ?, Precision = ?, Recall = ?, Threshold = ?, TCR = ?
       WHERE SurveyId = ? AND ModelName = ?",
-      params = list(round(sel$FScore, 4), round(sel$precision, 4),
-                    round(sel$recall, 4), sel$conf_thresh,
-                    round(sel$TCR, 4), survey, model_name))
+                   params = list(round(sel$FScore, 4), round(sel$precision, 4),
+                                 round(sel$recall, 4), sel$conf_thresh,
+                                 round(sel$TCR, 4), survey, model_name))
     # One row per orthomosaic; surveys split into several orthomosaics
     # share one threshold
     if (n == 0) {
@@ -415,7 +426,7 @@ compute_threshold_results <- function(db_name, colony, species, date,
       message(n, " ModelPredictions row(s) updated")
     }
   }
-
+  
   message(sprintf(
     "%s: threshold %.2f, F1 %.4f, precision %.4f, recall %.4f, TCR %.4f",
     survey, sel$conf_thresh, sel$FScore, sel$precision, sel$recall, sel$TCR))

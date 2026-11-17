@@ -31,7 +31,7 @@ source("code/analysis_code/analysis_helpers.R")
 
 # Figure dimensions (inches), matching the submitted figures
 fig_size <- list(fig4 = c(width = 6.3, height = 7.3),
-                 fig5 = c(width = 7, height = 5),
+                 fig5 = c(width = 7, height = 4),
                  fig6 = c(width = 5.4, height = 7.3))
 
 colony_label <- function(code) factor(colony_names[code], levels = colony_order)

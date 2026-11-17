@@ -2,7 +2,7 @@
 
 The scripts in `code/analysis_code/` produce the figures, tables, and statistics reported in the manuscript that are not direct outputs of the survey-and-analysis pipeline (Table S3). They read the pipeline's outputs (the survey database, per-orthomosaic GIS layers, and prediction files) and write summary tables to `data/` and figures to `figs/` (JPG and PDF).
 
-All scripts are run from the root of the R project, for example `source("code/analysis_code/create_table2_population_estimates.R")`. Each script sources `analysis_helpers.R`, which holds the shared configuration (database path, deployed model name `ADPE_20250804_adult_sit`, helicopter census file), the functions that combine a survey's orthomosaics into survey totals, and the figure styling. The scripts are independent of one another and can be run in any order. `summarize_threshold_performance.R` also uses the matching functions in `code/validation_functions.R`.
+All scripts are run from the root of the R project, for example `source("code/analysis_code/create_table2_population_estimates.R")`. Each script sources `analysis_helpers.R`, which holds the shared configuration (database path, deployed model name `ADPE_20250804_adult_sit`, helicopter census file), the functions that combine a survey's orthomosaics into survey totals, and the figure styling. The scripts are independent of one another and can be run in any order.
 
 ### Scripts and the results they produce
 
@@ -10,7 +10,7 @@ All scripts are run from the root of the R project, for example `source("code/an
 |---|---|---|
 | Methods, Step 4: training tiles, labeled individuals, train/validation/test split, and overlap between training and evaluation tiles; Section 3.2: test tiles without penguins | `summarize_training_data.R` | `data/training_label_summary.csv`, `data/tile_adjacency_assessment.csv` |
 | Section 3.1: survey area, images, execution time, coverage efficiency, ground sample distance (from Table S2) | `summarize_field_survey_metrics.R` | `data/field_survey_metrics_summary.csv` |
-| Section 3.3: selected confidence thresholds and F1 scores; Methods, Step 5: number of tiles reviewed; Table S4 | `summarize_threshold_performance.R` | `data/threshold_performance_by_survey.csv`, `data/threshold_performance_curves.csv` |
+| Section 3.3: selected confidence thresholds and F1 scores; Methods, Step 5: number of tiles reviewed; Table S4 | `summarize_threshold_performance.R` | `data/threshold_performance_by_survey.csv` |
 | Section 3.4: reduction from raw detections to candidate nests, 2025 surveys | `summarize_spatial_filtering.R` | `data/detection_attrition_2025.csv` |
 | Section 3.5: detection correction and margins of error; Section 3.6: occupied-territory conversion and ratio of active nests to occupied territories | `summarize_calibration_ratios.R` | `data/calibration_ratios_by_survey.csv` |
 | Table 2 | `create_table2_population_estimates.R` | `data/table2_population_estimates.csv` |
@@ -22,7 +22,7 @@ All scripts are run from the root of the R project, for example `source("code/an
 ### Inputs
 
 - `data/UAVSurveys.db`: survey database written by the pipeline (tables `ModelPredictions`, `CalibratedCounts`, `ManualCountsOccupied`).
-- `data/ross_sea_adelie_penguin_census_record_1981_2025.csv`: helicopter census of Adélie penguin breeding pairs by colony section and season, 1981–2025, from Antarctica New Zealand and Manaaki Whenua – Landcare Research (https://doi.org/10.7931/kf06-x745), redistributed here under its CC BY-NC 4.0 license. The dataset behind this DOI is updated as new seasons are added and earlier counts are corrected; the file included here is the version used for the manuscript, downloaded on [date].
+- `data/ross_sea_adelie_penguin_census_record_1981_2025.csv`: helicopter census of Adélie penguin breeding pairs by colony section and season, 1981–2025, from Antarctica New Zealand and Manaaki Whenua – Landcare Research (https://doi.org/10.7931/kf06-x745), redistributed here under its CC BY-NC 4.0 license. The dataset behind this DOI is updated as new seasons are added and earlier counts are corrected; the file included here is the version used for the manuscript, downloaded on November 6, 2026.
 - `data/survey_dates.csv`: UAV and helicopter survey dates (Table 1).
 - `data/table_s2_survey_metrics.csv`: per-survey UAV deployment metrics (Table S2).
 - `data/<survey>/`: per-survey pipeline outputs (prediction CSVs, YOLO label files, GIS layers, and the expert-reviewed threshold-selection tiles and labels).

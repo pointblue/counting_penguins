@@ -1,0 +1,22 @@
+colony,year,platform,n_uavs,survey_area_ha,area_approximate,execution_time_hr,n_images,ortho_gsd_cm
+croz,2018,Phantom 4 Pro,1,100,TRUE,9.5,6956,1.8
+croz,2019,Matrice 100,4,105.6,FALSE,2.77,2686,1.59
+croz,2020,Matrice 100,2,114.9,FALSE,5.62,4192,1.24
+croz,2021,Matrice 100,3,114.9,FALSE,3.25,3808,1.26
+croz,2022,Matrice 100,3,114.9,FALSE,3.13,4105,1.26
+croz,2023,Mavic 3E,3,117.0,FALSE,1.7,5246,1.19
+croz,2024,Mavic 3E,2,117.0,FALSE,3.23,5113,1.17
+croz,2025,Mavic 3E,2,117.0,FALSE,4.97,5110,1.08
+royd,2018,Phantom 4 Pro,1,5,TRUE,0.72,866,1.1
+royd,2019,Matrice 100,1,2.2,FALSE,0.07,135,1.22
+royd,2020,Matrice 100,1,4.4,FALSE,0.15,269,1.36
+royd,2021,Matrice 100,1,4.4,FALSE,0.15,269,1.39
+royd,2022,Matrice 100,1,4.4,FALSE,0.22,270,1.43
+royd,2023,Mavic 3E,1,4.4,FALSE,0.1,208,1.28
+royd,2024,Mavic 3E,1,4.4,FALSE,0.13,204,1.16
+royd,2025,Mavic 3E,1,4.4,FALSE,0.13,208,1.09
+bird,2021,Matrice 100,2,63.4,FALSE,5.27,2645,1.15
+bird,2022,Matrice 100,1,66.3,FALSE,5.51,2406,1.23
+bird,2023,Mavic 3E,2,77.5,FALSE,3.55,3429,1.1
+bird,2024,Mavic 3E,2,77.5,FALSE,2.33,3466,1.01
+bird,2025,Mavic 3E,2,77.5,FALSE,3.58,3447,1.03
