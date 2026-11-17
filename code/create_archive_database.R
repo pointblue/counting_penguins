@@ -2,9 +2,10 @@
 # create_archive_database.R
 # Builds a publishable copy of the UAVSurveys SQLite database containing
 # only what is needed to reproduce the published analysis: the tables
-# used by the pipeline (and the lookup tables they reference), surveys of
-# the three Ross Island colonies (Cape Crozier, Cape Bird, Cape Royds),
-# and results for the deployed YOLOv8 model (ADPE_20250804_adult_sit).
+# used by the pipeline (and the lookup tables they reference), Adélie
+# penguin surveys (survey names containing "adpe") of the three Ross
+# Island colonies (Cape Crozier, Cape Bird, Cape Royds), and results for
+# the deployed YOLOv8 model (ADPE_20250804_adult_sit).
 # The working database is not modified.
 #
 # Run in two passes:
@@ -22,10 +23,11 @@
 #        - drop the listed columns, columns matching drop_pattern, and any
 #          indexes on them (other table definitions, including primary
 #          and foreign keys, are unchanged),
-#        - apply the row filters (colonies, model), then remove rows
+#        - apply the row filters (colonies, species, model), then remove rows
 #          whose foreign keys refer to removed rows, repeating until no
-#          further rows are removed (e.g., surveys at other locations,
-#          and their imagery, predictions, counts, and label sets),
+#          further rows are removed (e.g., surveys of other species or at
+#          other locations, and their imagery, predictions, counts, and
+#          label sets),
 #        - remove lookup-table rows that no kept row refers to,
 #        - run SQLite's foreign key check (must report no violations),
 #        - VACUUM, so that removed data are not left in unused pages of
@@ -36,6 +38,8 @@
 #
 # Requires SQLite 3.35 or later (for ALTER TABLE ... DROP COLUMN), which
 # is included with current versions of RSQLite. Run from the project root.
+#
+# Developed with assistance from Claude (Anthropic); reviewed and tested by the authors.
 # --------------------------------------------------------------------
 
 library(DBI)
@@ -54,6 +58,10 @@ build_archive <- TRUE
 # GroundCounts.col values are lower case).
 colonies   <- c("croz", "bird", "royd")
 model_name <- "ADPE_20250804_adult_sit"
+
+# Species included in the archive, identified by this code in the survey
+# name (e.g., croz_adpe_2024-11-27), matched without regard to case
+species <- "adpe"
 
 # Tables to keep: those used by the pipeline and analysis, and the lookup
 # tables they reference
@@ -77,6 +85,7 @@ drop_pattern <- "notes"
 in_list <- function(x) paste0("(", paste(sprintf("'%s'", x), collapse = ", "), ")")
 row_filters <- list(
   Locations        = paste("UPPER(LocationId) IN", in_list(toupper(colonies))),
+  Surveys          = sprintf("LOWER(SurveyId) LIKE '%%\\_%s\\_%%' ESCAPE '\\'", tolower(species)),
   GroundCounts     = paste("LOWER(col) IN", in_list(tolower(colonies))),
   Models           = sprintf("ModelName = '%s'", model_name),
   ModelPredictions = sprintf("ModelName = '%s'", model_name),
@@ -214,13 +223,18 @@ if (!build_archive) {
     stop("The working database has foreign key violations in kept tables ",
          "(counts above). Fix them before building the archive.")
   }
-  # The colonies and model must exist, or the filters would remove everything
+  # The colonies, species, and model must exist, or the filters would
+  # remove everything
   ids <- dbGetQuery(con, "SELECT LocationId FROM Locations")$LocationId
   models <- dbGetQuery(con, "SELECT ModelName FROM Models")$ModelName
-  if (length(setdiff(toupper(colonies), toupper(ids))) > 0 || !model_name %in% models) {
+  n_species <- dbGetQuery(con, sprintf("SELECT COUNT(*) AS n FROM Surveys WHERE %s",
+                                       row_filters$Surveys))$n
+  if (length(setdiff(toupper(colonies), toupper(ids))) > 0 || !model_name %in% models ||
+      n_species == 0) {
     dbDisconnect(con); file.remove(archive_db)
-    stop("Check colonies and model_name. LocationId values: ", paste(ids, collapse = ", "),
-         "; models: ", paste(models, collapse = ", "))
+    stop("Check colonies, species, and model_name. LocationId values: ",
+         paste(ids, collapse = ", "), "; models: ", paste(models, collapse = ", "),
+         "; surveys matching species '", species, "': ", n_species)
   }
   before <- row_counts(con, tables_keep)
   
